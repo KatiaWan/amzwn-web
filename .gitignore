@@ -1,0 +1,20 @@
+# Secrets and local environment files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local secret stores and credentials
+密钥库.md
+*密钥库*.md
+credentials*
+secrets*
+
+# Editor and operating-system files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
