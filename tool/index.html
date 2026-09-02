@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="提交 Amazon ASIN 与广告搜索词报表，生成 AMZWN 关键词作战总表。">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="AMZWN 关键词作战">
+  <meta property="og:description" content="热度 · 竞争 · 实绩 · 打法，一张表看清关键词下一步动作。">
+  <meta property="og:url" content="https://katiawan.github.io/amzwn-web/">
+  <meta property="og:image" content="https://katiawan.github.io/amzwn-web/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="AMZWN 关键词作战">
+  <meta name="twitter:description" content="热度 · 竞争 · 实绩 · 打法，一张表看清关键词下一步动作。">
+  <meta name="twitter:image" content="https://katiawan.github.io/amzwn-web/assets/og.png">
+  <title>AMZWN 关键词作战｜提交任务</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body class="app-page">
+  <div class="page-glow page-glow--pink" aria-hidden="true"></div>
+  <div class="page-glow page-glow--lavender" aria-hidden="true"></div>
+
+  <header class="site-header app-header">
+    <a class="wordmark" href="../" aria-label="AMZWN 关键词作战首页">
+      <span class="wordmark__spark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span>AMZWN</span>
+    </a>
+    <div class="account-actions">
+      <span class="account-email" id="account-email">正在验证账号…</span>
+      <button class="text-button" id="logout-button" type="button">退出登录</button>
+    </div>
+  </header>
+
+  <main class="tool-shell is-loading" id="tool-shell" aria-busy="true">
+    <section class="workspace-heading">
+      <div>
+        <p class="eyebrow">KEYWORD WORKSPACE</p>
+        <h1>提交一份新的<br><span>关键词作战任务</span></h1>
+      </div>
+      <div class="workspace-note">
+        <strong>1 份报表 · 最多 200 个词</strong>
+        <span>约 5–10 分钟完成，页面可随时关闭。</span>
+      </div>
+    </section>
+
+    <section class="submit-card" aria-labelledby="submit-title">
+      <div class="submit-card__intro">
+        <span class="section-number">01</span>
+        <div><h2 id="submit-title">开始分析</h2><p>填写目标 ASIN，再上传对应的 Sponsored Products 搜索词报表。</p></div>
+      </div>
+      <form class="task-form" id="task-form" novalidate>
+        <label class="field field--large">
+          <span>目标 ASIN</span>
+          <input id="asin-input" type="text" name="asin" inputmode="text" autocomplete="off" placeholder="例如 B09V366BDY" maxlength="10" required pattern="B0[A-Z0-9]{8}">
+          <small>10 位，以 B0 开头；输入后会自动转为大写。</small>
+        </label>
+
+        <div class="file-field">
+          <span class="file-field__label">广告搜索词报表</span>
+          <input id="report-file" class="visually-hidden" type="file" name="report" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" required>
+          <label class="file-drop" id="file-drop" for="report-file">
+            <span class="file-drop__icon" aria-hidden="true">↥</span>
+            <span class="file-drop__copy"><strong id="file-title">选择 .xlsx 或 .csv 文件</strong><small id="file-subtitle">点击这里浏览文件，单个文件不超过 50 MB</small></span>
+            <span class="file-drop__action">选择文件</span>
+          </label>
+        </div>
+
+        <div class="submit-row">
+          <p class="form-status" id="task-status" role="status" aria-live="polite">文件会先进入你的私有收件箱，处理完成后自动删除。</p>
+          <button class="primary-button primary-button--fit" id="task-submit" type="submit"><span>提交分析任务</span><span class="button-arrow" aria-hidden="true">↗</span></button>
+        </div>
+      </form>
+    </section>
+
+    <section class="history-section" aria-labelledby="history-title">
+      <div class="section-heading">
+        <div class="submit-card__intro submit-card__intro--compact">
+          <span class="section-number section-number--lavender">02</span>
+          <div><h2 id="history-title">最近任务</h2><p>这里显示最近 10 条，处理中任务会自动刷新。</p></div>
+        </div>
+        <button class="secondary-button" id="refresh-button" type="button">刷新状态</button>
+      </div>
+
+      <div class="task-list" id="task-list">
+        <div class="empty-state" id="task-loading"><span class="empty-state__mark">…</span><strong>正在读取任务</strong><p>很快就好。</p></div>
+      </div>
+    </section>
+  </main>
+
+  <template id="task-template">
+    <article class="task-item">
+      <div class="task-main"><strong class="task-asin"></strong><span class="task-time"></span></div>
+      <span class="status-pill"></span>
+      <div class="task-detail"></div>
+      <a class="task-action" href="#">查看报告 <span aria-hidden="true">↗</span></a>
+    </article>
+  </template>
+
+  <script src="../vendor/supabase-2.114.0.js"></script>
+  <script src="../assets/config.js"></script>
+  <script src="../assets/supabase-client.js"></script>
+  <script src="../assets/tool.js"></script>
+</body>
+</html>

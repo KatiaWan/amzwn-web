@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="在线查看 AMZWN 关键词作战总表。">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="AMZWN 关键词作战">
+  <meta property="og:description" content="热度 · 竞争 · 实绩 · 打法，一张表看清关键词下一步动作。">
+  <meta property="og:url" content="https://katiawan.github.io/amzwn-web/">
+  <meta property="og:image" content="https://katiawan.github.io/amzwn-web/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="AMZWN 关键词作战">
+  <meta name="twitter:description" content="热度 · 竞争 · 实绩 · 打法，一张表看清关键词下一步动作。">
+  <meta name="twitter:image" content="https://katiawan.github.io/amzwn-web/assets/og.png">
+  <title>AMZWN 关键词作战｜分析报告</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body class="app-page report-page">
+  <header class="site-header app-header report-header">
+    <a class="wordmark" href="../tool/" aria-label="返回任务工具">
+      <span class="wordmark__spark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span>AMZWN</span>
+    </a>
+    <div class="report-toolbar">
+      <a class="secondary-button" href="../tool/">← 返回任务列表</a>
+      <button class="secondary-button" id="reload-report" type="button">刷新报告</button>
+    </div>
+  </header>
+
+  <main class="report-shell">
+    <section class="report-summary">
+      <div>
+        <p class="eyebrow">BATTLE REPORT</p>
+        <h1 id="report-title">关键词作战总表</h1>
+      </div>
+      <div class="report-meta">
+        <span class="status-pill" id="report-status" data-status="读取中">读取中</span>
+        <span id="report-time">正在验证任务…</span>
+      </div>
+    </section>
+
+    <section class="report-stage" id="report-stage" aria-live="polite">
+      <div class="report-state" id="report-state">
+        <span class="report-state__shape" aria-hidden="true">…</span>
+        <h2>正在打开你的报告</h2>
+        <p>我们正在确认登录状态和任务归属。</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="../vendor/supabase-2.114.0.js"></script>
+  <script src="../assets/config.js"></script>
+  <script src="../assets/supabase-client.js"></script>
+  <script src="../assets/report.js"></script>
+</body>
+</html>

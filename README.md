@@ -2,4 +2,26 @@
 
 第七期“关键词作战总表”前台仓库。
 
-当前状态：建设中。
+## 页面
+
+- `/`：邮箱注册与登录。
+- `/tool/`：提交 ASIN 与 `.xlsx`／`.csv` 广告搜索词报表，查看最近 10 条任务。
+- `/report/?task=<uuid>`：校验任务归属后，在线读取并渲染已完成报告。
+
+## 本地预览
+
+在本目录启动静态服务器：
+
+```text
+python -m http.server 8766 --bind 127.0.0.1
+```
+
+然后访问 `http://127.0.0.1:8766/`。
+
+## 安全约束
+
+- 前端只包含 Supabase 公开 publishable key。
+- 万能钥匙、OSS、西柚、豆包与 SSH 凭证不得进入本仓库。
+- 输入报表上传到私有桶 `keyword-inputs`，路径固定为 `{user_id}/{task_id}.{ext}`。
+- `keyword_tasks` 与 Storage 均由 Supabase RLS 限制为当前登录用户。
+- Supabase 浏览器库已固定到本地 `vendor/supabase-2.114.0.js`，许可证见同目录。

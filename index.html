@@ -3,9 +3,85 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AMZWN｜建设中</title>
+  <meta name="description" content="AMZWN 关键词作战：把关键词热度、竞争格局、广告实绩和投放建议汇成一张作战总表。">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="AMZWN 关键词作战">
+  <meta property="og:description" content="热度 · 竞争 · 实绩 · 打法，一张表看清关键词下一步动作。">
+  <meta property="og:url" content="https://katiawan.github.io/amzwn-web/">
+  <meta property="og:image" content="https://katiawan.github.io/amzwn-web/assets/og.png">
+  <meta property="og:image:width" content="1792">
+  <meta property="og:image:height" content="1024">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="AMZWN 关键词作战">
+  <meta name="twitter:description" content="热度 · 竞争 · 实绩 · 打法，一张表看清关键词下一步动作。">
+  <meta name="twitter:image" content="https://katiawan.github.io/amzwn-web/assets/og.png">
+  <title>AMZWN 关键词作战｜登录</title>
+  <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body>
-  <p>建设中</p>
+  <div class="page-glow page-glow--pink" aria-hidden="true"></div>
+  <div class="page-glow page-glow--lavender" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <a class="wordmark" href="./" aria-label="AMZWN 关键词作战首页">
+      <span class="wordmark__spark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span>AMZWN</span>
+    </a>
+    <div class="header-note"><span class="status-dot" aria-hidden="true"></span>关键词工人在线</div>
+  </header>
+
+  <main class="auth-layout">
+    <section class="intro-panel" aria-labelledby="page-title">
+      <div class="eyebrow">AMAZON KEYWORD WORKSPACE</div>
+      <h1 id="page-title">让每个关键词，<br><span>都有下一步动作。</span></h1>
+      <p class="intro-copy">输入 ASIN，上传广告报表。系统会自动汇总关键词热度、竞争格局、广告实绩，并生成可执行的投放建议。</p>
+
+      <div class="feature-grid" aria-label="工具能力">
+        <article class="feature-card feature-card--pink">
+          <span class="feature-card__number">01</span>
+          <div><h2>找准机会</h2><p>从搜索热度与 13 周趋势里找到值得放大的词。</p></div>
+        </article>
+        <article class="feature-card feature-card--lavender">
+          <span class="feature-card__number">02</span>
+          <div><h2>看清竞争</h2><p>对照点击前三、自然位和竞品主图判断真实难度。</p></div>
+        </article>
+        <article class="feature-card feature-card--ochre">
+          <span class="feature-card__number">03</span>
+          <div><h2>马上行动</h2><p>把广告实绩与规则合并成一句清晰打法。</p></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="auth-card" aria-labelledby="auth-title">
+      <div class="auth-card__accent" aria-hidden="true"><span>20</span><small>关键词小样已通过</small></div>
+      <div class="auth-card__body">
+        <div class="auth-tabs" role="tablist" aria-label="账号操作">
+          <button class="auth-tab is-active" type="button" role="tab" aria-selected="true" data-mode="login">登录</button>
+          <button class="auth-tab" type="button" role="tab" aria-selected="false" data-mode="signup">注册</button>
+        </div>
+        <div class="auth-heading">
+          <p class="eyebrow">WELCOME BACK</p>
+          <h2 id="auth-title">继续你的关键词作战</h2>
+          <p id="auth-subtitle">登录后提交任务，并查看只属于你的分析报告。</p>
+        </div>
+        <form id="auth-form" novalidate>
+          <label class="field"><span>邮箱</span><input type="email" name="email" autocomplete="email" placeholder="name@example.com" required></label>
+          <label class="field"><span>密码</span><input type="password" name="password" autocomplete="current-password" placeholder="至少 6 位密码" minlength="6" required></label>
+          <button class="primary-button" id="auth-submit" type="submit"><span id="auth-submit-label">登录并进入工具</span><span class="button-arrow" aria-hidden="true">↗</span></button>
+          <p class="form-status" id="form-status" role="status" aria-live="polite">使用已注册邮箱登录；新用户请先切换到“注册”。</p>
+        </form>
+        <div class="privacy-note">
+          <span class="privacy-note__icon" aria-hidden="true">✓</span>
+          <p><strong>你的数据彼此隔离</strong><br>登录后只能查看自己提交的任务和报告。</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer"><span>AMZWN 关键词作战</span><span>热度 · 竞争 · 实绩 · 打法</span></footer>
+  <script src="vendor/supabase-2.114.0.js"></script>
+  <script src="assets/config.js"></script>
+  <script src="assets/supabase-client.js"></script>
+  <script src="assets/auth.js"></script>
 </body>
 </html>
