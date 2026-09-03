@@ -365,9 +365,23 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .report-summary .eyebrow { margin-bottom: 7px; }
 .report-summary h1 { margin: 0; font-size: clamp(27px, 3.4vw, 42px); font-weight: 540; letter-spacing: -.045em; }
 .report-meta { display: flex; gap: 12px; align-items: center; color: var(--muted); font-size: 12px; }
-.report-stage { min-height: calc(100vh - 180px); overflow: hidden; border: 1px solid rgba(10,10,10,.08); border-radius: 24px; background: white; box-shadow: var(--shadow-soft); }
-.report-frame { width: 100%; height: calc(100vh - 182px); display: block; border: 0; background: #f3f6fb; }
-.report-state { min-height: calc(100vh - 184px); display: grid; justify-items: center; align-content: center; padding: 44px 24px; text-align: center; }
+.report-stage { height: calc(100vh - 180px); min-height: 520px; display: flex; overflow: hidden; flex-direction: column; border: 1px solid rgba(10,10,10,.08); border-radius: 24px; background: white; box-shadow: var(--shadow-soft); }
+.report-frame { width: 100%; min-height: 0; display: block; flex: 1; border: 0; background: #f3f6fb; }
+.report-controls { position: relative; z-index: 2; flex: 0 0 auto; padding: 12px 16px 5px; border-bottom: 1px solid var(--hairline); background: rgba(255,255,255,.96); box-shadow: 0 8px 20px rgba(20,28,45,.05); }
+.report-controls__row { min-height: 38px; display: flex; gap: 13px; align-items: center; }
+.report-search { width: min(360px, 52vw); height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--hairline); border-radius: 11px; background: var(--paper); transition: border-color 150ms ease, box-shadow 150ms ease; }
+.report-search:focus-within { border-color: rgba(25,92,84,.55); box-shadow: 0 0 0 3px rgba(156,210,195,.22); }
+.report-search__icon { color: var(--muted); font-size: 21px; line-height: 1; }
+.report-search input { width: 100%; min-width: 0; padding: 0; border: 0; outline: 0; color: var(--ink); background: transparent; font: inherit; font-size: 13px; }
+.report-search input::placeholder { color: #8b8b84; }
+.report-result-count { color: var(--ink); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.report-scroll-hint { margin-left: auto; color: var(--muted); font-size: 12px; }
+.report-x-scroll { height: 17px; overflow-x: auto; overflow-y: hidden; margin-top: 5px; border-radius: 999px; scrollbar-color: #8a918f #e9eceb; scrollbar-width: auto; }
+.report-x-scroll::-webkit-scrollbar { height: 12px; }
+.report-x-scroll::-webkit-scrollbar-track { border-radius: 999px; background: #e9eceb; }
+.report-x-scroll::-webkit-scrollbar-thumb { border: 2px solid #e9eceb; border-radius: 999px; background: #7c8582; }
+.report-x-scroll__track { height: 1px; }
+.report-state { width: 100%; min-height: 0; display: grid; flex: 1; justify-items: center; align-content: center; padding: 44px 24px; text-align: center; }
 .report-state__shape { width: 86px; height: 74px; display: grid; place-items: center; margin-bottom: 22px; border-radius: 48% 52% 38% 62% / 52% 41% 59% 48%; color: var(--ink); background: var(--lavender); font-size: 28px; transform: rotate(-4deg); }
 .report-state h2 { margin: 0 0 9px; font-size: 27px; font-weight: 560; letter-spacing: -.035em; }
 .report-state p { max-width: 540px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
@@ -415,7 +429,11 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .report-toolbar .secondary-button:first-child { display: none; }
   .report-summary { align-items: flex-start; flex-direction: column; }
   .report-meta { align-items: flex-start; flex-direction: column; }
-  .report-stage { min-height: calc(100vh - 240px); }
-  .report-frame, .report-state { height: calc(100vh - 242px); min-height: calc(100vh - 242px); }
+  .report-stage { height: calc(100vh - 240px); min-height: 460px; }
+  .report-controls { padding-inline: 11px; }
+  .report-controls__row { flex-wrap: wrap; gap: 8px 12px; }
+  .report-search { width: 100%; }
+  .report-scroll-hint { display: none; }
+  .report-frame, .report-state { min-height: 0; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
