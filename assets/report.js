@@ -74,17 +74,37 @@
       .amzwn-table-tools{display:flex;gap:12px;align-items:center;margin-top:8px;padding:9px 12px;border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0;background:#fff}
       .amzwn-table-tools__title{font-size:13px;white-space:nowrap}
       .amzwn-table-tools__count{color:var(--muted);font-size:12px;white-space:nowrap}
-      .amzwn-table-search{width:min(340px,50vw);height:36px;display:flex;align-items:center;gap:7px;margin-left:auto;padding:0 11px;border:1px solid #d8dde5;border-radius:9px;background:#fff}
+      .amzwn-signal-filter{height:36px;display:flex;align-items:center;gap:8px;margin-left:auto;padding:0 9px 0 11px;border:1px solid #d8dde5;border-radius:9px;background:#fff;color:#667085;font-size:12px;white-space:nowrap}
+      .amzwn-signal-filter:focus-within{border-color:#3e8d7f;box-shadow:0 0 0 3px #9cd2c338}
+      .amzwn-signal-filter select{max-width:190px;border:0;outline:0;background:transparent;color:#243147;font:inherit;font-weight:650;cursor:pointer}
+      .amzwn-table-search{width:min(310px,42vw);height:36px;display:flex;align-items:center;gap:7px;padding:0 11px;border:1px solid #d8dde5;border-radius:9px;background:#fff}
       .amzwn-table-search:focus-within{border-color:#3e8d7f;box-shadow:0 0 0 3px #9cd2c338}
       .amzwn-table-search span{color:#667085;font-size:18px}
       .amzwn-table-search input{width:100%;min-width:0;padding:0;border:0;outline:0;background:transparent;font:inherit;font-size:12px}
+      .table-shell table{min-width:2450px!important}
+      th:nth-child(3),td:nth-child(3){width:132px!important;text-align:left!important}
+      th:nth-child(10),td:nth-child(10){width:100px!important;text-align:right!important}
+      th:nth-child(11),td:nth-child(11){width:240px!important;text-align:left!important}
+      th:nth-child(12),td:nth-child(12){width:110px!important}
+      th:nth-child(13),td:nth-child(13){width:155px!important}
+      th:nth-child(18),td:nth-child(18){width:110px!important;text-align:right!important}
+      th:nth-child(19),td:nth-child(19){width:330px!important;text-align:left!important}
+      .amzwn-signal-cell{white-space:normal}
+      .amzwn-signal-chip{display:inline-flex;align-items:center;justify-content:center;min-width:68px;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:750;line-height:1.35;white-space:nowrap}
+      .amzwn-signal-detail{display:block;margin-top:5px;color:#788397;font-size:10px;line-height:1.35}
+      .amzwn-signal--scale{background:#e7f6ed;color:#13734b}
+      .amzwn-signal--defend{background:#e4f3f1;color:#176b5e}
+      .amzwn-signal--test{background:#f0ebff;color:#6753b7}
+      .amzwn-signal--risk{background:#fff0f0;color:#b42318}
+      .amzwn-signal--longtail{background:#fff4df;color:#985b08}
+      .amzwn-signal--observe{background:#eef2f6;color:#596579}
       .amzwn-pagination{display:flex;gap:6px;align-items:center;justify-content:center;padding:10px 8px 0}
       .amzwn-pagination button{min-width:34px;height:32px;padding:0 9px;border:1px solid #d8dde5;border-radius:7px;color:#344054;background:#fff;cursor:pointer;font:inherit;font-size:12px}
       .amzwn-pagination button:hover:not(:disabled){border-color:#3e8d7f;color:#176b5e}
       .amzwn-pagination button[aria-current="page"]{border-color:#16836f;color:#fff;background:#16836f;font-weight:700}
       .amzwn-pagination button:disabled{cursor:not-allowed;opacity:.38}
       .footer{margin:5px 0 0!important;font-size:10px!important;line-height:1.3!important}
-      @media(max-width:720px){.wrap{padding:8px!important}.hero{padding:12px 14px!important}.hero h1{font-size:18px!important}.hero p{display:none!important}.metrics{grid-template-columns:1fr 1fr!important}.note{display:none!important}.amzwn-table-tools{align-items:flex-start;flex-wrap:wrap}.amzwn-table-search{width:100%;order:3;margin-left:0}.amzwn-table-tools__count{margin-left:auto}}
+      @media(max-width:720px){.wrap{padding:8px!important}.hero{padding:12px 14px!important}.hero h1{font-size:18px!important}.hero p{display:none!important}.metrics{grid-template-columns:1fr 1fr!important}.note{display:none!important}.amzwn-table-tools{align-items:flex-start;flex-wrap:wrap}.amzwn-table-tools__count{margin-left:auto}.amzwn-signal-filter{width:100%;order:3;margin-left:0}.amzwn-signal-filter select{max-width:none;flex:1}.amzwn-table-search{width:100%;order:4}}
     </style>`;
     if (/<head[\s>]/i.test(html)) return html.replace(/<head([^>]*)>/i, `<head$1>${baseTag}${viewerStyles}`);
     return `<!doctype html><html><head>${baseTag}${viewerStyles}</head><body>${html}</body></html>`;
@@ -97,6 +117,46 @@
     const reportContent = frameDocument?.querySelector(".wrap") || frameDocument?.body;
     const rows = table ? Array.from(table.querySelectorAll("tbody tr")) : [];
     if (!tableShell || !table || !reportContent || !rows.length) return;
+
+    const signalDefinitions = {
+      "守住放大": { key: "scale", label: "↑ 放量", detail: "已出单 · ACOS达标" },
+      "优势防守": { key: "defend", label: "◆ 守位", detail: "自然位 · 点击优势" },
+      "精准测试": { key: "test", label: "◇ 试投", detail: "高流量 · 可进入" },
+      "降价止损": { key: "risk", label: "↓ 止损", detail: "高花费 · 暂无订单" },
+      "转向长尾": { key: "longtail", label: "↗ 换长尾", detail: "头部竞争集中" },
+      "继续观察": { key: "observe", label: "· 观察", detail: "暂未触发动作" }
+    };
+    const signalOrder = ["守住放大", "优势防守", "精准测试", "降价止损", "转向长尾", "继续观察"];
+    const signalCounts = new Map(signalOrder.map((label) => [signalDefinitions[label].key, 0]));
+    const headerRow = table.querySelector("thead tr");
+    const keywordHeader = headerRow?.children[1];
+    if (keywordHeader) {
+      keywordHeader.textContent = "关键词";
+      const signalHeader = frameDocument.createElement("th");
+      signalHeader.textContent = "作战信号";
+      keywordHeader.after(signalHeader);
+    }
+    rows.forEach((row) => {
+      const keywordCell = row.children[1];
+      if (!keywordCell) return;
+      const categoryBadge = keywordCell.querySelector(".badge");
+      const categoryLabel = categoryBadge?.textContent?.trim() || "继续观察";
+      const signal = signalDefinitions[categoryLabel] || signalDefinitions["继续观察"];
+      row.dataset.amzwnSignal = signal.key;
+      signalCounts.set(signal.key, (signalCounts.get(signal.key) || 0) + 1);
+      categoryBadge?.remove();
+
+      const signalCell = frameDocument.createElement("td");
+      signalCell.className = "amzwn-signal-cell";
+      const signalChip = frameDocument.createElement("span");
+      signalChip.className = `amzwn-signal-chip amzwn-signal--${signal.key}`;
+      signalChip.textContent = signal.label;
+      const signalDetail = frameDocument.createElement("small");
+      signalDetail.className = "amzwn-signal-detail";
+      signalDetail.textContent = signal.detail;
+      signalCell.append(signalChip, signalDetail);
+      keywordCell.after(signalCell);
+    });
 
     removeReportControls();
     stage.classList.add("report-stage--expanded");
@@ -118,6 +178,25 @@
     const count = frameDocument.createElement("span");
     count.className = "amzwn-table-tools__count";
 
+    const signalFilter = frameDocument.createElement("label");
+    signalFilter.className = "amzwn-signal-filter";
+    const signalFilterLabel = frameDocument.createElement("span");
+    signalFilterLabel.textContent = "作战信号";
+    const signalSelect = frameDocument.createElement("select");
+    signalSelect.setAttribute("aria-label", "按作战信号筛选关键词");
+    const allSignalsOption = frameDocument.createElement("option");
+    allSignalsOption.value = "all";
+    allSignalsOption.textContent = `全部信号（${rows.length}）`;
+    signalSelect.append(allSignalsOption);
+    signalOrder.forEach((categoryLabel) => {
+      const signal = signalDefinitions[categoryLabel];
+      const option = frameDocument.createElement("option");
+      option.value = signal.key;
+      option.textContent = `${signal.label}（${signalCounts.get(signal.key) || 0}）`;
+      signalSelect.append(option);
+    });
+    signalFilter.append(signalFilterLabel, signalSelect);
+
     const searchGroup = frameDocument.createElement("label");
     searchGroup.className = "amzwn-table-search";
     searchGroup.innerHTML = '<span aria-hidden="true">⌕</span>';
@@ -129,7 +208,7 @@
     searchInput.setAttribute("aria-label", "在当前报告中搜索关键词或 ASIN");
     searchGroup.append(searchInput);
 
-    controls.append(sectionTitle, count, searchGroup);
+    controls.append(sectionTitle, count, signalFilter, searchGroup);
     tableShell.before(controls);
 
     const pagination = frameDocument.createElement("nav");
@@ -262,8 +341,9 @@
       rows.forEach((row) => { row.hidden = !visibleRows.has(row); });
 
       const queryActive = Boolean(searchInput.value.trim());
+      const signalActive = signalSelect.value !== "all";
       if (!filteredRows.length) count.textContent = `显示 0 / ${rows.length}`;
-      else if (queryActive) count.textContent = `显示 ${filteredRows.length} / ${rows.length}`;
+      else if (queryActive || signalActive) count.textContent = `显示 ${filteredRows.length} / ${rows.length}`;
       else count.textContent = `显示 ${start + 1}-${start + pageRows.length} / ${rows.length}`;
 
       pagination.replaceChildren();
@@ -277,7 +357,12 @@
 
     const filterRows = () => {
       const query = searchInput.value.trim().toLocaleLowerCase();
-      filteredRows = rows.filter((row) => !query || row.textContent.toLocaleLowerCase().includes(query));
+      const selectedSignal = signalSelect.value;
+      filteredRows = rows.filter((row) => {
+        const matchesSignal = selectedSignal === "all" || row.dataset.amzwnSignal === selectedSignal;
+        const matchesQuery = !query || row.textContent.toLocaleLowerCase().includes(query);
+        return matchesSignal && matchesQuery;
+      });
       currentPage = 1;
       renderPage();
       tableShell.scrollLeft = 0;
@@ -288,6 +373,7 @@
     followRail.addEventListener("keydown", moveRailWithKeyboard);
     tableShell.addEventListener("scroll", syncFromTable, { passive: true });
     searchInput.addEventListener("input", filterRows);
+    signalSelect.addEventListener("change", filterRows);
     window.addEventListener("scroll", scheduleRailPosition, { passive: true });
     window.addEventListener("resize", scheduleFrameSize);
     const resizeObserver = "ResizeObserver" in window ? new ResizeObserver(scheduleFrameSize) : null;
@@ -301,6 +387,7 @@
       followRail.removeEventListener("keydown", moveRailWithKeyboard);
       tableShell.removeEventListener("scroll", syncFromTable);
       searchInput.removeEventListener("input", filterRows);
+      signalSelect.removeEventListener("change", filterRows);
       window.removeEventListener("scroll", scheduleRailPosition);
       window.removeEventListener("resize", scheduleFrameSize);
       resizeObserver?.disconnect();
