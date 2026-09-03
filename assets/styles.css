@@ -257,6 +257,17 @@ button, a { -webkit-tap-highlight-color: transparent; }
 }
 .workspace-note strong { font-size: 14px; }
 .workspace-note span { color: rgba(10,10,10,.66); font-size: 12px; }
+.workspace-note .security-status {
+  width: fit-content;
+  margin-top: 3px;
+  padding: 5px 9px;
+  border: 1px solid rgba(10,10,10,.08);
+  border-radius: 999px;
+  background: rgba(255,255,255,.58);
+  font-weight: 700;
+}
+.workspace-note .security-status[data-state="verified"] { color: #167150; }
+.workspace-note .security-status[data-state="failed"] { color: #a8322b; }
 .submit-card {
   padding: clamp(26px, 4vw, 42px);
   border: 1px solid rgba(10,10,10,.08);

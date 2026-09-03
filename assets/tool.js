@@ -16,6 +16,7 @@
   const refreshButton = document.querySelector("#refresh-button");
   const taskList = document.querySelector("#task-list");
   const template = document.querySelector("#task-template");
+  const securityStatus = document.querySelector("#security-status");
   let session = null;
   let pollTimer = null;
 
@@ -29,6 +30,31 @@
   function setTaskMessage(message, kind) {
     taskStatus.textContent = message;
     taskStatus.className = "form-status" + (kind ? ` is-${kind}` : "");
+  }
+
+  function setSecurityStatus(message, state) {
+    securityStatus.textContent = message;
+    securityStatus.dataset.state = state;
+  }
+
+  async function verifySecurityApi(activeSession) {
+    if (!app.config.apiUrl) throw new Error("未配置安全接口地址");
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 10000);
+    try {
+      const response = await fetch(app.config.apiUrl, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${activeSession.access_token}` },
+        cache: "no-store",
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error(`安全接口拒绝了当前会话（${response.status}）`);
+      const result = await response.json();
+      if (!result?.ok || result.authenticated !== true) throw new Error("安全接口未确认当前会话");
+      setSecurityStatus("安全接口已验证", "verified");
+    } finally {
+      window.clearTimeout(timeout);
+    }
   }
 
   function resetFileLabel() {
@@ -204,13 +230,17 @@
   });
 
   app.requireSession("../")
-    .then((activeSession) => {
+    .then(async (activeSession) => {
       if (!activeSession) return;
       session = activeSession;
       accountEmail.textContent = session.user.email || "已登录";
+      await verifySecurityApi(activeSession);
       shell.classList.remove("is-loading");
       shell.setAttribute("aria-busy", "false");
       loadTasks();
     })
-    .catch(() => window.location.replace("../"));
+    .catch((error) => {
+      accountEmail.textContent = "安全验证未通过";
+      setSecurityStatus(error?.message || "安全接口暂不可用，请稍后重试。", "failed");
+    });
 })();
