@@ -25,6 +25,7 @@
 
   function showState(title, detail, action) {
     removeReportControls();
+    stage.classList.remove("report-stage--expanded");
     stage.replaceChildren();
     const state = document.createElement("div");
     state.className = "report-state";
@@ -58,9 +59,9 @@
     const safeBase = reportUrl.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
     const baseTag = `<base href="${safeBase}">`;
     const viewerStyles = `<style id="amzwn-viewer-styles">
-      html,body{height:100%!important;overflow:hidden!important}
+      html,body{height:auto!important;overflow:visible!important}
       body{min-height:0!important}
-      .wrap{box-sizing:border-box!important;height:100%!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;padding:14px 18px 12px!important}
+      .wrap{box-sizing:border-box!important;height:auto!important;display:block!important;overflow:visible!important;padding:14px 18px 12px!important}
       .hero{padding:16px 20px!important;border-radius:14px!important;box-shadow:none!important}
       .hero h1{margin:0 0 3px!important;font-size:22px!important}
       .hero p{display:inline-block!important;margin:2px 18px 0 0!important;font-size:11px!important}
@@ -68,11 +69,8 @@
       .metric{padding:9px 12px!important}
       .metric b{margin-top:1px!important;font-size:18px!important}
       .note{margin:8px 0!important;padding:8px 12px!important;font-size:12px!important}
-      .hero,.metrics,.note,.amzwn-table-tools,.amzwn-pagination,.footer{flex:0 0 auto!important}
-      .table-shell{min-height:150px!important;flex:1 1 auto!important;overflow:auto!important;overscroll-behavior:contain;border-radius:0 0 12px 12px!important;scrollbar-color:#7c8582 #e9eceb}
-      .table-shell::-webkit-scrollbar{width:12px;height:12px}
-      .table-shell::-webkit-scrollbar-track{background:#e9eceb}
-      .table-shell::-webkit-scrollbar-thumb{border:2px solid #e9eceb;border-radius:999px;background:#7c8582}
+      .table-shell{min-height:0!important;overflow-x:auto!important;overflow-y:hidden!important;border-radius:0 0 12px 12px!important;scrollbar-width:none!important}
+      .table-shell::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
       .amzwn-table-tools{display:flex;gap:12px;align-items:center;margin-top:8px;padding:9px 12px;border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0;background:#fff}
       .amzwn-table-tools__title{font-size:13px;white-space:nowrap}
       .amzwn-table-tools__count{color:var(--muted);font-size:12px;white-space:nowrap}
@@ -86,7 +84,7 @@
       .amzwn-pagination button[aria-current="page"]{border-color:#16836f;color:#fff;background:#16836f;font-weight:700}
       .amzwn-pagination button:disabled{cursor:not-allowed;opacity:.38}
       .footer{margin:5px 0 0!important;font-size:10px!important;line-height:1.3!important}
-      @media(max-width:720px){.wrap{padding:8px!important}.hero{padding:12px 14px!important}.hero h1{font-size:18px!important}.hero p{display:none!important}.metrics{grid-template-columns:1fr 1fr!important}.note{display:none!important}.table-shell{min-height:120px!important}.amzwn-table-tools{align-items:flex-start;flex-wrap:wrap}.amzwn-table-search{width:100%;order:3;margin-left:0}.amzwn-table-tools__count{margin-left:auto}}
+      @media(max-width:720px){.wrap{padding:8px!important}.hero{padding:12px 14px!important}.hero h1{font-size:18px!important}.hero p{display:none!important}.metrics{grid-template-columns:1fr 1fr!important}.note{display:none!important}.amzwn-table-tools{align-items:flex-start;flex-wrap:wrap}.amzwn-table-search{width:100%;order:3;margin-left:0}.amzwn-table-tools__count{margin-left:auto}}
     </style>`;
     if (/<head[\s>]/i.test(html)) return html.replace(/<head([^>]*)>/i, `<head$1>${baseTag}${viewerStyles}`);
     return `<!doctype html><html><head>${baseTag}${viewerStyles}</head><body>${html}</body></html>`;
@@ -96,14 +94,19 @@
     const frameDocument = frame.contentDocument;
     const tableShell = frameDocument?.querySelector(".table-shell");
     const table = tableShell?.querySelector("table");
+    const reportContent = frameDocument?.querySelector(".wrap") || frameDocument?.body;
     const rows = table ? Array.from(table.querySelectorAll("tbody tr")) : [];
-    if (!tableShell || !table || !rows.length) return;
+    if (!tableShell || !table || !reportContent || !rows.length) return;
 
     removeReportControls();
+    stage.classList.add("report-stage--expanded");
 
     const pageSize = 50;
     let currentPage = 1;
     let filteredRows = rows;
+    let syncingScroll = false;
+    let resizeFrameId = 0;
+    let positionFrameId = 0;
 
     const controls = frameDocument.createElement("div");
     controls.className = "amzwn-table-tools";
@@ -134,10 +137,110 @@
     pagination.setAttribute("aria-label", "关键词分页");
     tableShell.after(pagination);
 
+    const followRail = document.createElement("div");
+    followRail.className = "report-follow-scroll";
+    followRail.tabIndex = 0;
+    followRail.setAttribute("role", "scrollbar");
+    followRail.setAttribute("aria-label", "关键词表格横向滑条");
+    followRail.setAttribute("aria-orientation", "horizontal");
+    const followTrack = document.createElement("div");
+    followTrack.className = "report-follow-scroll__track";
+    followRail.append(followTrack);
+    document.body.append(followRail);
+
+    const updateRailPosition = () => {
+      positionFrameId = 0;
+      const frameRect = frame.getBoundingClientRect();
+      const shellRect = tableShell.getBoundingClientRect();
+      const tableTop = frameRect.top + shellRect.top;
+      const tableBottom = frameRect.top + shellRect.bottom;
+      const visibleTop = Math.max(0, tableTop);
+      const visibleBottom = Math.min(window.innerHeight, tableBottom);
+      const hasVerticalSpace = visibleBottom - visibleTop > 24;
+      const hasHorizontalOverflow = tableShell.scrollWidth - tableShell.clientWidth > 2;
+
+      if (!hasVerticalSpace || !hasHorizontalOverflow) {
+        followRail.classList.remove("is-visible");
+        return;
+      }
+
+      const railHeight = 18;
+      const left = Math.max(0, frameRect.left + shellRect.left);
+      const right = Math.min(window.innerWidth, frameRect.left + shellRect.right);
+      const top = Math.min(window.innerHeight - railHeight - 4, tableBottom - railHeight);
+      followRail.style.left = `${Math.round(left)}px`;
+      followRail.style.top = `${Math.round(Math.max(0, top))}px`;
+      followRail.style.width = `${Math.max(80, Math.round(right - left))}px`;
+      followRail.classList.add("is-visible");
+    };
+
+    const scheduleRailPosition = () => {
+      if (positionFrameId) return;
+      positionFrameId = window.requestAnimationFrame(updateRailPosition);
+    };
+
+    const updateFrameSize = () => {
+      resizeFrameId = 0;
+      const nextHeight = Math.ceil(Math.max(
+        reportContent.scrollHeight,
+        reportContent.offsetHeight,
+        reportContent.getBoundingClientRect().height
+      ));
+      if (nextHeight > 0) frame.style.height = `${nextHeight}px`;
+      followTrack.style.width = `${Math.max(table.scrollWidth, tableShell.scrollWidth)}px`;
+      const maxScroll = Math.max(0, tableShell.scrollWidth - tableShell.clientWidth);
+      followRail.setAttribute("aria-valuemin", "0");
+      followRail.setAttribute("aria-valuemax", String(Math.round(maxScroll)));
+      followRail.setAttribute("aria-valuenow", String(Math.round(tableShell.scrollLeft)));
+      scheduleRailPosition();
+    };
+
+    const scheduleFrameSize = () => {
+      if (resizeFrameId) return;
+      resizeFrameId = window.requestAnimationFrame(updateFrameSize);
+    };
+
+    const syncFromRail = () => {
+      if (syncingScroll) return;
+      syncingScroll = true;
+      tableShell.scrollLeft = followRail.scrollLeft;
+      followRail.setAttribute("aria-valuenow", String(Math.round(followRail.scrollLeft)));
+      window.requestAnimationFrame(() => { syncingScroll = false; });
+    };
+
+    const syncFromTable = () => {
+      if (syncingScroll) return;
+      syncingScroll = true;
+      followRail.scrollLeft = tableShell.scrollLeft;
+      followRail.setAttribute("aria-valuenow", String(Math.round(tableShell.scrollLeft)));
+      window.requestAnimationFrame(() => { syncingScroll = false; });
+    };
+
+    const moveRailWithKeyboard = (event) => {
+      const maxScroll = Math.max(0, followRail.scrollWidth - followRail.clientWidth);
+      let target = null;
+      if (event.key === "ArrowLeft") target = followRail.scrollLeft - 80;
+      if (event.key === "ArrowRight") target = followRail.scrollLeft + 80;
+      if (event.key === "PageUp") target = followRail.scrollLeft - followRail.clientWidth * 0.8;
+      if (event.key === "PageDown") target = followRail.scrollLeft + followRail.clientWidth * 0.8;
+      if (event.key === "Home") target = 0;
+      if (event.key === "End") target = maxScroll;
+      if (target === null) return;
+      event.preventDefault();
+      followRail.scrollLeft = Math.max(0, Math.min(maxScroll, target));
+    };
+
+    const scrollToTableStart = () => {
+      const frameRect = frame.getBoundingClientRect();
+      const controlsRect = controls.getBoundingClientRect();
+      const target = window.scrollY + frameRect.top + controlsRect.top - 76;
+      window.scrollTo({ top: Math.max(0, target), behavior: "auto" });
+    };
+
     const changePage = (page) => {
       currentPage = page;
       renderPage();
-      tableShell.scrollTop = 0;
+      scrollToTableStart();
     };
 
     const pageButton = (label, page, options = {}) => {
@@ -169,6 +272,7 @@
         pagination.append(pageButton(String(page), page, { current: page === currentPage }));
       }
       pagination.append(pageButton("›", currentPage + 1, { disabled: currentPage === totalPages }));
+      scheduleFrameSize();
     };
 
     const filterRows = () => {
@@ -176,17 +280,38 @@
       filteredRows = rows.filter((row) => !query || row.textContent.toLocaleLowerCase().includes(query));
       currentPage = 1;
       renderPage();
-      tableShell.scrollTop = 0;
+      tableShell.scrollLeft = 0;
+      followRail.scrollLeft = 0;
     };
 
+    followRail.addEventListener("scroll", syncFromRail, { passive: true });
+    followRail.addEventListener("keydown", moveRailWithKeyboard);
+    tableShell.addEventListener("scroll", syncFromTable, { passive: true });
     searchInput.addEventListener("input", filterRows);
+    window.addEventListener("scroll", scheduleRailPosition, { passive: true });
+    window.addEventListener("resize", scheduleFrameSize);
+    const resizeObserver = "ResizeObserver" in window ? new ResizeObserver(scheduleFrameSize) : null;
+    resizeObserver?.observe(reportContent);
+    resizeObserver?.observe(table);
     renderPage();
+    scheduleFrameSize();
 
     destroyReportControls = () => {
+      followRail.removeEventListener("scroll", syncFromRail);
+      followRail.removeEventListener("keydown", moveRailWithKeyboard);
+      tableShell.removeEventListener("scroll", syncFromTable);
       searchInput.removeEventListener("input", filterRows);
+      window.removeEventListener("scroll", scheduleRailPosition);
+      window.removeEventListener("resize", scheduleFrameSize);
+      resizeObserver?.disconnect();
+      if (resizeFrameId) window.cancelAnimationFrame(resizeFrameId);
+      if (positionFrameId) window.cancelAnimationFrame(positionFrameId);
       rows.forEach((row) => { row.hidden = false; });
       controls.remove();
       pagination.remove();
+      followRail.remove();
+      frame.style.height = "";
+      stage.classList.remove("report-stage--expanded");
     };
   }
 
@@ -209,7 +334,7 @@
       frame.className = "report-frame";
       frame.title = `${task.asin} 关键词作战总表`;
       // Scripts stay blocked. Same-origin access is enabled only so the parent
-      // viewer can filter rows and synchronize the accessible top scrollbar.
+      // viewer can filter rows, resize the report, and sync the follow scrollbar.
       frame.setAttribute("sandbox", "allow-same-origin");
       frame.setAttribute("referrerpolicy", "no-referrer");
       frame.addEventListener("load", () => {
@@ -217,6 +342,8 @@
           addReportControls(frame);
         } catch {
           removeReportControls();
+          frame.style.height = "";
+          stage.classList.remove("report-stage--expanded");
         }
       }, { once: true });
       frame.srcdoc = withBaseUrl(html, task.report_url);

@@ -367,6 +367,14 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .report-meta { display: flex; gap: 12px; align-items: center; color: var(--muted); font-size: 12px; }
 .report-stage { height: calc(100vh - 180px); min-height: 520px; display: flex; overflow: hidden; flex-direction: column; border: 1px solid rgba(10,10,10,.08); border-radius: 24px; background: white; box-shadow: var(--shadow-soft); }
 .report-frame { width: 100%; min-height: 0; display: block; flex: 1; border: 0; background: #f3f6fb; }
+.report-stage--expanded { height: auto; min-height: 0; overflow: visible; }
+.report-stage--expanded .report-frame { flex: none; }
+.report-follow-scroll { position: fixed; z-index: 40; height: 18px; overflow-x: auto; overflow-y: hidden; border: 1px solid rgba(32,45,44,.14); border-radius: 999px; opacity: 0; pointer-events: none; background: rgba(237,240,239,.97); box-shadow: 0 5px 18px rgba(20,28,45,.14); scrollbar-color: #707a77 #e9eceb; transition: opacity 120ms ease; }
+.report-follow-scroll.is-visible { opacity: 1; pointer-events: auto; }
+.report-follow-scroll::-webkit-scrollbar { height: 12px; }
+.report-follow-scroll::-webkit-scrollbar-track { border-radius: 999px; background: #e9eceb; }
+.report-follow-scroll::-webkit-scrollbar-thumb { border: 2px solid #e9eceb; border-radius: 999px; background: #707a77; }
+.report-follow-scroll__track { height: 1px; }
 .report-state { width: 100%; min-height: 0; display: grid; flex: 1; justify-items: center; align-content: center; padding: 44px 24px; text-align: center; }
 .report-state__shape { width: 86px; height: 74px; display: grid; place-items: center; margin-bottom: 22px; border-radius: 48% 52% 38% 62% / 52% 41% 59% 48%; color: var(--ink); background: var(--lavender); font-size: 28px; transform: rotate(-4deg); }
 .report-state h2 { margin: 0 0 9px; font-size: 27px; font-weight: 560; letter-spacing: -.035em; }
