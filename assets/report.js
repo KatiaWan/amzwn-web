@@ -58,7 +58,9 @@
     const safeBase = reportUrl.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
     const baseTag = `<base href="${safeBase}">`;
     const viewerStyles = `<style id="amzwn-viewer-styles">
-      .wrap{padding:14px 18px 20px!important}
+      html,body{height:100%!important;overflow:hidden!important}
+      body{min-height:0!important}
+      .wrap{box-sizing:border-box!important;height:100%!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;padding:14px 18px 12px!important}
       .hero{padding:16px 20px!important;border-radius:14px!important;box-shadow:none!important}
       .hero h1{margin:0 0 3px!important;font-size:22px!important}
       .hero p{display:inline-block!important;margin:2px 18px 0 0!important;font-size:11px!important}
@@ -66,8 +68,9 @@
       .metric{padding:9px 12px!important}
       .metric b{margin-top:1px!important;font-size:18px!important}
       .note{margin:8px 0!important;padding:8px 12px!important;font-size:12px!important}
-      .table-shell{border-radius:0 0 12px 12px!important;scrollbar-color:#7c8582 #e9eceb}
-      .table-shell::-webkit-scrollbar{height:12px}
+      .hero,.metrics,.note,.amzwn-table-tools,.amzwn-pagination,.footer{flex:0 0 auto!important}
+      .table-shell{min-height:150px!important;flex:1 1 auto!important;overflow:auto!important;overscroll-behavior:contain;border-radius:0 0 12px 12px!important;scrollbar-color:#7c8582 #e9eceb}
+      .table-shell::-webkit-scrollbar{width:12px;height:12px}
       .table-shell::-webkit-scrollbar-track{background:#e9eceb}
       .table-shell::-webkit-scrollbar-thumb{border:2px solid #e9eceb;border-radius:999px;background:#7c8582}
       .amzwn-table-tools{display:flex;gap:12px;align-items:center;margin-top:8px;padding:9px 12px;border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0;background:#fff}
@@ -77,12 +80,13 @@
       .amzwn-table-search:focus-within{border-color:#3e8d7f;box-shadow:0 0 0 3px #9cd2c338}
       .amzwn-table-search span{color:#667085;font-size:18px}
       .amzwn-table-search input{width:100%;min-width:0;padding:0;border:0;outline:0;background:transparent;font:inherit;font-size:12px}
-      .amzwn-pagination{display:flex;gap:6px;align-items:center;justify-content:center;padding:13px 8px 3px}
+      .amzwn-pagination{display:flex;gap:6px;align-items:center;justify-content:center;padding:10px 8px 0}
       .amzwn-pagination button{min-width:34px;height:32px;padding:0 9px;border:1px solid #d8dde5;border-radius:7px;color:#344054;background:#fff;cursor:pointer;font:inherit;font-size:12px}
       .amzwn-pagination button:hover:not(:disabled){border-color:#3e8d7f;color:#176b5e}
       .amzwn-pagination button[aria-current="page"]{border-color:#16836f;color:#fff;background:#16836f;font-weight:700}
       .amzwn-pagination button:disabled{cursor:not-allowed;opacity:.38}
-      @media(max-width:720px){.wrap{padding:8px!important}.hero{padding:12px 14px!important}.hero h1{font-size:18px!important}.metrics{grid-template-columns:1fr 1fr!important}.amzwn-table-tools{align-items:flex-start;flex-wrap:wrap}.amzwn-table-search{width:100%;order:3;margin-left:0}.amzwn-table-tools__count{margin-left:auto}}
+      .footer{margin:5px 0 0!important;font-size:10px!important;line-height:1.3!important}
+      @media(max-width:720px){.wrap{padding:8px!important}.hero{padding:12px 14px!important}.hero h1{font-size:18px!important}.hero p{display:none!important}.metrics{grid-template-columns:1fr 1fr!important}.note{display:none!important}.table-shell{min-height:120px!important}.amzwn-table-tools{align-items:flex-start;flex-wrap:wrap}.amzwn-table-search{width:100%;order:3;margin-left:0}.amzwn-table-tools__count{margin-left:auto}}
     </style>`;
     if (/<head[\s>]/i.test(html)) return html.replace(/<head([^>]*)>/i, `<head$1>${baseTag}${viewerStyles}`);
     return `<!doctype html><html><head>${baseTag}${viewerStyles}</head><body>${html}</body></html>`;
@@ -133,7 +137,7 @@
     const changePage = (page) => {
       currentPage = page;
       renderPage();
-      controls.scrollIntoView({ block: "start" });
+      tableShell.scrollTop = 0;
     };
 
     const pageButton = (label, page, options = {}) => {
@@ -172,6 +176,7 @@
       filteredRows = rows.filter((row) => !query || row.textContent.toLocaleLowerCase().includes(query));
       currentPage = 1;
       renderPage();
+      tableShell.scrollTop = 0;
     };
 
     searchInput.addEventListener("input", filterRows);
