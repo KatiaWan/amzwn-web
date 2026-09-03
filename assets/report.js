@@ -57,8 +57,35 @@
   function withBaseUrl(html, reportUrl) {
     const safeBase = reportUrl.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
     const baseTag = `<base href="${safeBase}">`;
-    if (/<head[\s>]/i.test(html)) return html.replace(/<head([^>]*)>/i, `<head$1>${baseTag}`);
-    return `<!doctype html><html><head>${baseTag}</head><body>${html}</body></html>`;
+    const viewerStyles = `<style id="amzwn-viewer-styles">
+      .wrap{padding:14px 18px 20px!important}
+      .hero{padding:16px 20px!important;border-radius:14px!important;box-shadow:none!important}
+      .hero h1{margin:0 0 3px!important;font-size:22px!important}
+      .hero p{display:inline-block!important;margin:2px 18px 0 0!important;font-size:11px!important}
+      .metrics{gap:8px!important;margin:10px 0!important}
+      .metric{padding:9px 12px!important}
+      .metric b{margin-top:1px!important;font-size:18px!important}
+      .note{margin:8px 0!important;padding:8px 12px!important;font-size:12px!important}
+      .table-shell{border-radius:0 0 12px 12px!important;scrollbar-color:#7c8582 #e9eceb}
+      .table-shell::-webkit-scrollbar{height:12px}
+      .table-shell::-webkit-scrollbar-track{background:#e9eceb}
+      .table-shell::-webkit-scrollbar-thumb{border:2px solid #e9eceb;border-radius:999px;background:#7c8582}
+      .amzwn-table-tools{display:flex;gap:12px;align-items:center;margin-top:8px;padding:9px 12px;border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0;background:#fff}
+      .amzwn-table-tools__title{font-size:13px;white-space:nowrap}
+      .amzwn-table-tools__count{color:var(--muted);font-size:12px;white-space:nowrap}
+      .amzwn-table-search{width:min(340px,50vw);height:36px;display:flex;align-items:center;gap:7px;margin-left:auto;padding:0 11px;border:1px solid #d8dde5;border-radius:9px;background:#fff}
+      .amzwn-table-search:focus-within{border-color:#3e8d7f;box-shadow:0 0 0 3px #9cd2c338}
+      .amzwn-table-search span{color:#667085;font-size:18px}
+      .amzwn-table-search input{width:100%;min-width:0;padding:0;border:0;outline:0;background:transparent;font:inherit;font-size:12px}
+      .amzwn-pagination{display:flex;gap:6px;align-items:center;justify-content:center;padding:13px 8px 3px}
+      .amzwn-pagination button{min-width:34px;height:32px;padding:0 9px;border:1px solid #d8dde5;border-radius:7px;color:#344054;background:#fff;cursor:pointer;font:inherit;font-size:12px}
+      .amzwn-pagination button:hover:not(:disabled){border-color:#3e8d7f;color:#176b5e}
+      .amzwn-pagination button[aria-current="page"]{border-color:#16836f;color:#fff;background:#16836f;font-weight:700}
+      .amzwn-pagination button:disabled{cursor:not-allowed;opacity:.38}
+      @media(max-width:720px){.wrap{padding:8px!important}.hero{padding:12px 14px!important}.hero h1{font-size:18px!important}.metrics{grid-template-columns:1fr 1fr!important}.amzwn-table-tools{align-items:flex-start;flex-wrap:wrap}.amzwn-table-search{width:100%;order:3;margin-left:0}.amzwn-table-tools__count{margin-left:auto}}
+    </style>`;
+    if (/<head[\s>]/i.test(html)) return html.replace(/<head([^>]*)>/i, `<head$1>${baseTag}${viewerStyles}`);
+    return `<!doctype html><html><head>${baseTag}${viewerStyles}</head><body>${html}</body></html>`;
   }
 
   function addReportControls(frame) {
@@ -70,110 +97,91 @@
 
     removeReportControls();
 
-    const controls = document.createElement("div");
-    controls.className = "report-controls";
+    const pageSize = 50;
+    let currentPage = 1;
+    let filteredRows = rows;
 
-    const searchGroup = document.createElement("label");
-    searchGroup.className = "report-search";
-    searchGroup.innerHTML = '<span class="report-search__icon" aria-hidden="true">⌕</span>';
+    const controls = frameDocument.createElement("div");
+    controls.className = "amzwn-table-tools";
 
-    const searchInput = document.createElement("input");
+    const sectionTitle = frameDocument.createElement("strong");
+    sectionTitle.className = "amzwn-table-tools__title";
+    sectionTitle.textContent = "关键词明细";
+
+    const count = frameDocument.createElement("span");
+    count.className = "amzwn-table-tools__count";
+
+    const searchGroup = frameDocument.createElement("label");
+    searchGroup.className = "amzwn-table-search";
+    searchGroup.innerHTML = '<span aria-hidden="true">⌕</span>';
+
+    const searchInput = frameDocument.createElement("input");
     searchInput.type = "search";
     searchInput.placeholder = "搜索关键词或 ASIN";
     searchInput.autocomplete = "off";
     searchInput.setAttribute("aria-label", "在当前报告中搜索关键词或 ASIN");
     searchGroup.append(searchInput);
 
-    const count = document.createElement("span");
-    count.className = "report-result-count";
-    count.textContent = `显示 ${rows.length} / ${rows.length}`;
+    controls.append(sectionTitle, count, searchGroup);
+    tableShell.before(controls);
 
-    const hint = document.createElement("span");
-    hint.className = "report-scroll-hint";
-    hint.textContent = "拖动下方滚动条查看右侧列";
+    const pagination = frameDocument.createElement("nav");
+    pagination.className = "amzwn-pagination";
+    pagination.setAttribute("aria-label", "关键词分页");
+    tableShell.after(pagination);
 
-    const controlRow = document.createElement("div");
-    controlRow.className = "report-controls__row";
-    controlRow.append(searchGroup, count, hint);
-
-    const scrollRail = document.createElement("div");
-    scrollRail.className = "report-x-scroll";
-    scrollRail.tabIndex = 0;
-    scrollRail.setAttribute("role", "scrollbar");
-    scrollRail.setAttribute("aria-label", "报告横向滚动条");
-    scrollRail.setAttribute("aria-orientation", "horizontal");
-    const scrollTrack = document.createElement("div");
-    scrollTrack.className = "report-x-scroll__track";
-    scrollRail.append(scrollTrack);
-    controls.append(controlRow, scrollRail);
-    stage.insertBefore(controls, frame);
-
-    let syncing = false;
-    const syncFromRail = () => {
-      if (syncing) return;
-      syncing = true;
-      const railMax = Math.max(0, scrollRail.scrollWidth - scrollRail.clientWidth);
-      const tableMax = Math.max(0, tableShell.scrollWidth - tableShell.clientWidth);
-      tableShell.scrollLeft = railMax ? (scrollRail.scrollLeft / railMax) * tableMax : 0;
-      scrollRail.setAttribute("aria-valuenow", String(Math.round(tableShell.scrollLeft)));
-      window.requestAnimationFrame(() => { syncing = false; });
+    const changePage = (page) => {
+      currentPage = page;
+      renderPage();
+      controls.scrollIntoView({ block: "start" });
     };
-    const syncFromTable = () => {
-      if (syncing) return;
-      syncing = true;
-      const railMax = Math.max(0, scrollRail.scrollWidth - scrollRail.clientWidth);
-      const tableMax = Math.max(0, tableShell.scrollWidth - tableShell.clientWidth);
-      scrollRail.scrollLeft = tableMax ? (tableShell.scrollLeft / tableMax) * railMax : 0;
-      scrollRail.setAttribute("aria-valuenow", String(Math.round(tableShell.scrollLeft)));
-      window.requestAnimationFrame(() => { syncing = false; });
+
+    const pageButton = (label, page, options = {}) => {
+      const button = frameDocument.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.disabled = Boolean(options.disabled);
+      if (options.current) button.setAttribute("aria-current", "page");
+      button.addEventListener("click", () => changePage(page));
+      return button;
     };
-    const updateTrack = () => {
-      scrollTrack.style.width = `${Math.max(table.scrollWidth, tableShell.scrollWidth)}px`;
-      scrollRail.setAttribute("aria-valuemax", String(Math.max(0, tableShell.scrollWidth - tableShell.clientWidth)));
-      scrollRail.setAttribute("aria-valuemin", "0");
-      syncFromTable();
+
+    const renderPage = () => {
+      const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+      currentPage = Math.min(currentPage, totalPages);
+      const start = (currentPage - 1) * pageSize;
+      const pageRows = filteredRows.slice(start, start + pageSize);
+      const visibleRows = new Set(pageRows);
+      rows.forEach((row) => { row.hidden = !visibleRows.has(row); });
+
+      const queryActive = Boolean(searchInput.value.trim());
+      if (!filteredRows.length) count.textContent = `显示 0 / ${rows.length}`;
+      else if (queryActive) count.textContent = `显示 ${filteredRows.length} / ${rows.length}`;
+      else count.textContent = `显示 ${start + 1}-${start + pageRows.length} / ${rows.length}`;
+
+      pagination.replaceChildren();
+      pagination.append(pageButton("‹", currentPage - 1, { disabled: currentPage === 1 }));
+      for (let page = 1; page <= totalPages; page += 1) {
+        pagination.append(pageButton(String(page), page, { current: page === currentPage }));
+      }
+      pagination.append(pageButton("›", currentPage + 1, { disabled: currentPage === totalPages }));
     };
+
     const filterRows = () => {
       const query = searchInput.value.trim().toLocaleLowerCase();
-      let visible = 0;
-      rows.forEach((row) => {
-        const matches = !query || row.textContent.toLocaleLowerCase().includes(query);
-        row.hidden = !matches;
-        if (matches) visible += 1;
-      });
-      count.textContent = `显示 ${visible} / ${rows.length}`;
-    };
-    const moveRailWithKeyboard = (event) => {
-      const railMax = Math.max(0, scrollRail.scrollWidth - scrollRail.clientWidth);
-      let target = null;
-      if (event.key === "ArrowLeft") target = scrollRail.scrollLeft - 80;
-      if (event.key === "ArrowRight") target = scrollRail.scrollLeft + 80;
-      if (event.key === "PageUp") target = scrollRail.scrollLeft - scrollRail.clientWidth * 0.8;
-      if (event.key === "PageDown") target = scrollRail.scrollLeft + scrollRail.clientWidth * 0.8;
-      if (event.key === "Home") target = 0;
-      if (event.key === "End") target = railMax;
-      if (target === null) return;
-      event.preventDefault();
-      scrollRail.scrollLeft = Math.max(0, Math.min(railMax, target));
+      filteredRows = rows.filter((row) => !query || row.textContent.toLocaleLowerCase().includes(query));
+      currentPage = 1;
+      renderPage();
     };
 
-    scrollRail.addEventListener("scroll", syncFromRail, { passive: true });
-    scrollRail.addEventListener("keydown", moveRailWithKeyboard);
-    tableShell.addEventListener("scroll", syncFromTable, { passive: true });
     searchInput.addEventListener("input", filterRows);
-    window.addEventListener("resize", updateTrack);
-    const resizeObserver = "ResizeObserver" in window ? new ResizeObserver(updateTrack) : null;
-    resizeObserver?.observe(table);
-    updateTrack();
+    renderPage();
 
     destroyReportControls = () => {
-      scrollRail.removeEventListener("scroll", syncFromRail);
-      scrollRail.removeEventListener("keydown", moveRailWithKeyboard);
-      tableShell.removeEventListener("scroll", syncFromTable);
       searchInput.removeEventListener("input", filterRows);
-      window.removeEventListener("resize", updateTrack);
-      resizeObserver?.disconnect();
+      rows.forEach((row) => { row.hidden = false; });
       controls.remove();
+      pagination.remove();
     };
   }
 
