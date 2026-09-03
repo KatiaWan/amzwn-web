@@ -68,6 +68,10 @@
       .metrics{gap:8px!important;margin:10px 0!important}
       .metric{padding:9px 12px!important}
       .metric b{margin-top:1px!important;font-size:18px!important}
+      .reconciliation{margin:8px 0!important;padding:10px 12px!important}
+      .reconciliation-heading{margin-bottom:6px!important}
+      .reconciliation-heading strong{font-size:16px!important}
+      .reconciliation th,.reconciliation td{padding:5px 8px!important;font-size:11px!important}
       .note{margin:8px 0!important;padding:8px 12px!important;font-size:12px!important}
       .table-shell{min-height:0!important;overflow-x:auto!important;overflow-y:hidden!important;border-radius:0 0 12px 12px!important;scrollbar-width:none!important}
       .table-shell::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
@@ -82,13 +86,16 @@
       .amzwn-table-search span{color:#667085;font-size:18px}
       .amzwn-table-search input{width:100%;min-width:0;padding:0;border:0;outline:0;background:transparent;font:inherit;font-size:12px}
       .table-shell table{min-width:2450px!important}
+      .table-shell table.amzwn-table--phase8{min-width:2840px!important}
       th:nth-child(3),td:nth-child(3){width:132px!important;text-align:left!important}
       th:nth-child(10),td:nth-child(10){width:100px!important;text-align:right!important}
       th:nth-child(11),td:nth-child(11){width:240px!important;text-align:left!important}
       th:nth-child(12),td:nth-child(12){width:110px!important}
       th:nth-child(13),td:nth-child(13){width:155px!important}
-      th:nth-child(18),td:nth-child(18){width:110px!important;text-align:right!important}
-      th:nth-child(19),td:nth-child(19){width:330px!important;text-align:left!important}
+      .amzwn-table--legacy th:nth-child(18),.amzwn-table--legacy td:nth-child(18),
+      .amzwn-table--phase8 th:nth-child(21),.amzwn-table--phase8 td:nth-child(21){width:110px!important;text-align:right!important}
+      .amzwn-table--legacy th:nth-child(19),.amzwn-table--legacy td:nth-child(19),
+      .amzwn-table--phase8 th:nth-child(22),.amzwn-table--phase8 td:nth-child(22){width:330px!important;text-align:left!important}
       .amzwn-signal-cell{white-space:normal}
       .amzwn-signal-chip{display:inline-flex;align-items:center;justify-content:center;min-width:68px;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:750;line-height:1.35;white-space:nowrap}
       .amzwn-signal-detail{display:block;margin-top:5px;color:#788397;font-size:10px;line-height:1.35}
@@ -129,6 +136,8 @@
     const signalOrder = ["守住放大", "优势防守", "精准测试", "降价止损", "转向长尾", "继续观察"];
     const signalCounts = new Map(signalOrder.map((label) => [signalDefinitions[label].key, 0]));
     const headerRow = table.querySelector("thead tr");
+    const sourceColumnCount = headerRow?.children.length || 0;
+    table.classList.add(sourceColumnCount >= 21 ? "amzwn-table--phase8" : "amzwn-table--legacy");
     const keywordHeader = headerRow?.children[1];
     if (keywordHeader) {
       keywordHeader.textContent = "关键词";
