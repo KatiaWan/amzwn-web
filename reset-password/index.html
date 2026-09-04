@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="为 AMZWN 关键词作战账号设置新密码。">
+  <meta name="robots" content="noindex, nofollow">
+  <title>AMZWN 关键词作战｜重置密码</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+  <div class="page-glow page-glow--pink" aria-hidden="true"></div>
+  <div class="page-glow page-glow--lavender" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <a class="wordmark" href="../" aria-label="返回 AMZWN 关键词作战登录页">
+      <span class="wordmark__spark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span>AMZWN</span>
+    </a>
+    <div class="header-note"><span class="status-dot" aria-hidden="true"></span>安全重置密码</div>
+  </header>
+
+  <main class="recovery-layout">
+    <section class="auth-card recovery-card" aria-labelledby="recovery-title">
+      <div class="auth-card__body">
+        <div class="auth-heading recovery-heading">
+          <p class="eyebrow">PASSWORD RECOVERY</p>
+          <h1 id="recovery-title">设置新密码</h1>
+          <p>只有通过有效重置邮件进入此页，才能更新账号密码。</p>
+        </div>
+
+        <form id="recovery-form" novalidate>
+          <fieldset id="recovery-fields" disabled>
+            <label class="field"><span>新密码</span><input type="password" name="password" autocomplete="new-password" placeholder="至少 8 位" minlength="8" required></label>
+            <label class="field"><span>确认新密码</span><input type="password" name="confirmation" autocomplete="new-password" placeholder="再次输入新密码" minlength="8" required></label>
+            <button class="primary-button" id="recovery-submit" type="submit"><span id="recovery-submit-label">更新密码并返回登录</span><span class="button-arrow" aria-hidden="true">↗</span></button>
+          </fieldset>
+          <p class="form-status" id="recovery-status" role="status" aria-live="polite">正在验证密码重置链接…</p>
+        </form>
+
+        <p class="recovery-return"><a href="../">返回登录页</a></p>
+        <div class="privacy-note">
+          <span class="privacy-note__icon" aria-hidden="true">✓</span>
+          <p><strong>重置会话用后即清理</strong><br>密码更新成功后，本页会退出恢复会话并返回登录页。</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer"><span>AMZWN 关键词作战</span><span>账号安全</span></footer>
+  <script src="../vendor/supabase-2.114.0.js"></script>
+  <script src="../assets/config.js"></script>
+  <script src="../assets/supabase-client.js"></script>
+  <script src="../assets/auth-recovery.js"></script>
+  <script src="../assets/password-recovery.js"></script>
+</body>
+</html>

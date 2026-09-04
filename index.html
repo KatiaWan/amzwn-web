@@ -65,7 +65,11 @@
         </div>
         <form id="auth-form" novalidate>
           <label class="field"><span>邮箱</span><input type="email" name="email" autocomplete="email" placeholder="name@example.com" required></label>
-          <label class="field"><span>密码</span><input type="password" name="password" autocomplete="current-password" placeholder="至少 6 位密码" minlength="6" required></label>
+          <label class="field" id="password-field"><span>密码</span><input type="password" name="password" autocomplete="current-password" placeholder="至少 6 位密码" minlength="6" required></label>
+          <div class="auth-help-row">
+            <button class="auth-link-button" id="forgot-password" type="button">忘记密码？</button>
+            <button class="auth-link-button" id="back-to-login" type="button" hidden>返回登录</button>
+          </div>
           <button class="primary-button" id="auth-submit" type="submit"><span id="auth-submit-label">登录并进入工具</span><span class="button-arrow" aria-hidden="true">↗</span></button>
           <p class="form-status" id="form-status" role="status" aria-live="polite">使用已注册邮箱登录；新用户请先切换到“注册”。</p>
         </form>
@@ -81,6 +85,7 @@
   <script src="vendor/supabase-2.114.0.js"></script>
   <script src="assets/config.js"></script>
   <script src="assets/supabase-client.js"></script>
+  <script src="assets/auth-recovery.js"></script>
   <script src="assets/auth.js"></script>
 </body>
 </html>

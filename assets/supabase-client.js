@@ -18,11 +18,50 @@
     }
   );
 
+  const recoveryMarker = "amzwn.password-recovery";
+  const recoveryWaiters = new Set();
+  let passwordRecoverySeen = false;
+
+  function setRecoveryMarker(active) {
+    try {
+      if (active) window.sessionStorage.setItem(recoveryMarker, "1");
+      else window.sessionStorage.removeItem(recoveryMarker);
+    } catch (_) {
+      // sessionStorage can be unavailable in hardened browsers. The in-memory
+      // PASSWORD_RECOVERY event remains the source of truth for this page load.
+    }
+  }
+
+  function hasRecoveryMarker() {
+    try {
+      return window.sessionStorage.getItem(recoveryMarker) === "1";
+    } catch (_) {
+      return false;
+    }
+  }
+
+  client.auth.onAuthStateChange((event, session) => {
+    if (event === "PASSWORD_RECOVERY" && session) {
+      passwordRecoverySeen = true;
+      setRecoveryMarker(true);
+      for (const waiter of recoveryWaiters) waiter.resolve(session);
+      recoveryWaiters.clear();
+      return;
+    }
+    if (event === "SIGNED_OUT") {
+      passwordRecoverySeen = false;
+      setRecoveryMarker(false);
+    }
+  });
+
   function messageFor(error, fallback) {
     const text = String(error && error.message ? error.message : "").toLowerCase();
     if (text.includes("invalid login credentials")) return "邮箱或密码不正确，请检查后重试。";
     if (text.includes("email not confirmed")) return "请先打开注册邮件完成邮箱确认。";
     if (text.includes("user already registered")) return "这个邮箱已经注册，请直接登录。";
+    if (text.includes("same password") || text.includes("different from the old password")) return "新密码不能与当前密码相同。";
+    if (text.includes("weak password")) return "新密码强度不足，请增加长度或复杂度。";
+    if (text.includes("session missing") || text.includes("invalid refresh token") || text.includes("refresh token not found")) return "重置链接无效或已过期，请重新发送。";
     if (text.includes("password should be")) return "密码至少需要 6 位。";
     if (text.includes("unable to validate email")) return "邮箱格式不正确，请检查。";
     if (text.includes("rate limit") || text.includes("security purposes")) return "操作太频繁，请稍后再试。";
@@ -34,6 +73,36 @@
     const result = await client.auth.getSession();
     if (result.error) throw result.error;
     return result.data.session;
+  }
+
+  async function waitForPasswordRecoverySession(timeoutMs) {
+    if (passwordRecoverySeen || hasRecoveryMarker()) {
+      const session = await currentSession();
+      if (session) return session;
+      passwordRecoverySeen = false;
+      setRecoveryMarker(false);
+    }
+
+    const wait = Number.isFinite(timeoutMs) ? Math.max(0, timeoutMs) : 10000;
+    return new Promise((resolve) => {
+      const waiter = { resolve, timer: null };
+      waiter.timer = window.setTimeout(() => {
+        recoveryWaiters.delete(waiter);
+        resolve(null);
+      }, wait);
+      waiter.resolve = (session) => {
+        window.clearTimeout(waiter.timer);
+        resolve(session);
+      };
+      recoveryWaiters.add(waiter);
+    });
+  }
+
+  async function clearPasswordRecoverySession() {
+    const result = await client.auth.signOut({ scope: "local" });
+    if (result.error) throw result.error;
+    passwordRecoverySeen = false;
+    setRecoveryMarker(false);
   }
 
   async function requireSession(loginPath) {
@@ -79,6 +148,8 @@
     client,
     config,
     currentSession,
+    waitForPasswordRecoverySession,
+    clearPasswordRecoverySession,
     requireSession,
     messageFor,
     setBusy,
