@@ -47,14 +47,26 @@
     <section class="submit-card" aria-labelledby="submit-title">
       <div class="submit-card__intro">
         <span class="section-number">01</span>
-        <div><h2 id="submit-title">开始分析</h2><p>填写目标 ASIN，再上传对应的 Sponsored Products 搜索词报表。</p></div>
+        <div><h2 id="submit-title">开始分析</h2><p>新任务可同时保存模块3配置；已完成任务也可单独补充竞对，不重跑原来的 200 词。</p></div>
       </div>
-      <form class="task-form" id="task-form" novalidate>
+
+      <div class="module3-path-tabs" role="tablist" aria-label="模块3提交路径">
+        <button type="button" class="module3-path-tab is-active" data-module3-path="new" role="tab" aria-selected="true">新任务同时配置</button>
+        <button type="button" class="module3-path-tab" data-module3-path="existing" role="tab" aria-selected="false">已完成任务补充</button>
+      </div>
+
+      <form class="task-form module3-path-panel" id="task-form" data-module3-panel="new" novalidate>
         <label class="field field--large">
           <span>目标 ASIN</span>
           <input id="asin-input" type="text" name="asin" inputmode="text" autocomplete="off" placeholder="例如 B09V366BDY" maxlength="10" required pattern="B0[A-Z0-9]{8}">
           <small>10 位，以 B0 开头；输入后会自动转为大写。</small>
         </label>
+
+        <div class="module3-config-fields">
+          <div class="field-label-row"><span>竞品 ASIN（3–5 个）</span><button type="button" class="inline-button" id="new-add-competitor">增加竞品</button></div>
+          <div class="competitor-fields" id="new-competitors"></div>
+          <label class="field"><span>核心关键词（选填）</span><input id="new-core-keyword" type="text" maxlength="200" placeholder="只保存到本任务；归属由服务器核验"></label>
+        </div>
 
         <div class="file-field">
           <span class="file-field__label">广告搜索词报表</span>
@@ -67,10 +79,47 @@
         </div>
 
         <div class="submit-row">
-          <p class="form-status" id="task-status" role="status" aria-live="polite">文件会先进入你的私有收件箱，处理完成后自动删除。</p>
+          <p class="form-status" id="task-status" role="status" aria-live="polite">报表进入你的私有收件箱；模块3配置使用独立状态，不改变普通任务四态。</p>
           <button class="primary-button primary-button--fit" id="task-submit" type="submit"><span>提交分析任务</span><span class="button-arrow" aria-hidden="true">↗</span></button>
         </div>
       </form>
+
+      <form class="module3-existing-form module3-path-panel" id="existing-module3-form" data-module3-panel="existing" hidden novalidate>
+        <label class="field"><span>选择自己的已完成任务</span><select id="existing-task-select" required><option value="">请选择任务</option></select></label>
+        <div class="module3-config-fields">
+          <div class="field-label-row"><span>竞品 ASIN（3–5 个）</span><button type="button" class="inline-button" id="existing-add-competitor">增加竞品</button></div>
+          <div class="competitor-fields" id="existing-competitors"></div>
+          <label class="field"><span>核心关键词（选填）</span><input id="existing-core-keyword" type="text" maxlength="200" placeholder="服务器会核验是否属于本任务关键词"></label>
+        </div>
+        <div class="submit-row">
+          <p class="form-status" id="existing-module3-status" role="status" aria-live="polite">不会重新上传广告报表，也不会重跑基础模块。</p>
+          <button class="primary-button primary-button--fit" id="existing-module3-submit" type="submit"><span>保存模块3配置</span><span class="button-arrow" aria-hidden="true">↗</span></button>
+        </div>
+      </form>
+    </section>
+
+    <section class="submit-card module3-media-card" aria-labelledby="module3-media-title">
+      <div class="submit-card__intro">
+        <span class="section-number section-number--lavender">M3</span>
+        <div><h2 id="module3-media-title">任务专属媒体清单</h2><p>先选择已配置的任务，再导入 product-media.json。服务器只验结构；最终完整性必须由任务所有者人工确认。</p></div>
+      </div>
+      <div class="module3-media-grid">
+        <label class="field"><span>模块3任务</span><select id="module3-task-select"><option value="">请选择任务</option></select></label>
+        <div class="module3-state-card"><span>当前状态</span><strong id="module3-state">未选择任务</strong><small id="module3-state-detail">历史任务没有模块3记录时显示“未申请”。</small></div>
+        <div class="file-field">
+          <span class="file-field__label">product-media.json</span>
+          <input id="module3-media-file" class="visually-hidden" type="file" accept="application/json,.json">
+          <label class="file-drop file-drop--compact" for="module3-media-file"><span class="file-drop__icon" aria-hidden="true">↥</span><span class="file-drop__copy"><strong id="module3-media-file-title">选择媒体清单</strong><small>最多 256 KB；不会下载或探测清单中的 URL</small></span><span class="file-drop__action">选择文件</span></label>
+        </div>
+      </div>
+      <div class="module3-action-row">
+        <button type="button" class="secondary-button" id="module3-refresh">查询状态</button>
+        <button type="button" class="secondary-button" id="module3-import">申请一次性凭证并导入</button>
+        <button type="button" class="secondary-button" id="module3-confirm-media" disabled>我已人工核对完整</button>
+        <button type="button" class="secondary-button" id="module3-authorize-paid" disabled>授权竞品档案费用</button>
+        <button type="button" class="secondary-button" id="module3-confirm-result" disabled>确认模块3结果</button>
+      </div>
+      <p class="form-status" id="module3-media-status" role="status" aria-live="polite">尚未导入媒体清单。</p>
     </section>
 
     <section class="history-section" aria-labelledby="history-title">
@@ -100,6 +149,7 @@
   <script src="../vendor/supabase-2.114.0.js"></script>
   <script src="../assets/config.js?v=20260903-phase8-v1"></script>
   <script src="../assets/supabase-client.js"></script>
-  <script src="../assets/tool.js?v=20260903-phase8-v1"></script>
+  <script src="../assets/module3-form.js?v=20260904-module3-local-v1"></script>
+  <script src="../assets/tool.js?v=20260904-module3-local-v1"></script>
 </body>
 </html>

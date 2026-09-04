@@ -12,6 +12,9 @@
 *密钥库*.md
 credentials*
 secrets*
+product-media.json
+*.product-media.json
+module3-media-import*.json
 
 # Editor and operating-system files
 .DS_Store

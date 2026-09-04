@@ -282,6 +282,27 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .section-number { flex: 0 0 auto; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: var(--pink); color: white; font-size: 12px; font-weight: 800; }
 .section-number--lavender { color: var(--ink); background: var(--lavender); }
 .task-form { display: grid; grid-template-columns: minmax(240px, .64fr) minmax(360px, 1.36fr); gap: 22px; margin-top: 30px; }
+.module3-path-tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; padding: 6px; border: 1px solid var(--hairline); border-radius: 16px; background: var(--surface); }
+.module3-path-tab { min-height: 42px; flex: 1 1 220px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: var(--muted); font: inherit; font-weight: 700; cursor: pointer; }
+.module3-path-tab.is-active { border-color: rgba(255,77,139,.28); background: white; color: var(--ink); box-shadow: 0 8px 24px rgba(65,48,38,.07); }
+.module3-path-panel[hidden] { display: none !important; }
+.module3-config-fields { display: grid; gap: 12px; align-content: start; }
+.field-label-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--body); font-size: 13px; font-weight: 650; }
+.inline-button, .competitor-remove { border: 0; background: transparent; color: var(--pink); font: inherit; font-size: 12px; font-weight: 750; cursor: pointer; }
+.competitor-fields { display: grid; gap: 8px; }
+.competitor-field-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; }
+.competitor-field-row input, .module3-existing-form select, .module3-media-grid select { width: 100%; min-height: 46px; padding: 0 13px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface); color: var(--ink); font: inherit; text-transform: uppercase; }
+.module3-existing-form { display: grid; grid-template-columns: minmax(250px,.8fr) minmax(360px,1.2fr); gap: 22px; margin-top: 30px; }
+.module3-existing-form .submit-row { grid-column: 1 / -1; }
+.module3-media-card { margin-top: 18px; }
+.module3-media-grid { display: grid; grid-template-columns: minmax(220px,.7fr) minmax(240px,.8fr) minmax(360px,1.3fr); gap: 18px; align-items: stretch; margin-top: 26px; }
+.module3-state-card { display: grid; align-content: center; gap: 4px; padding: 16px; border: 1px solid var(--hairline); border-radius: 16px; background: var(--surface); }
+.module3-state-card span, .module3-state-card small { color: var(--muted); }
+.module3-state-card strong { font-size: 20px; }
+.file-drop--compact { min-height: 92px; }
+.module3-action-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.module3-action-row .secondary-button { min-height: 42px; }
+.module3-action-row .secondary-button:disabled { cursor: not-allowed; opacity: .45; }
 .field--large { margin: 0; }
 .field--large input { height: 86px; padding-inline: 20px; border-radius: 18px; background: var(--surface); font-size: 24px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
 .field--large small { color: var(--muted); font-size: 11px; font-weight: 500; }
@@ -383,6 +404,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .workspace-heading { grid-template-columns: 1fr; align-items: start; }
   .workspace-note { width: fit-content; min-width: 0; }
   .task-form { grid-template-columns: 1fr; }
+  .module3-existing-form, .module3-media-grid { grid-template-columns: 1fr; }
   .submit-row { grid-column: auto; }
   .task-item { grid-template-columns: minmax(150px, .7fr) 100px minmax(180px, 1fr) auto; gap: 14px; }
 }
@@ -404,6 +426,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .workspace-heading h1 { font-size: clamp(39px, 12vw, 56px); }
   .submit-card { padding: 24px 18px; border-radius: 22px; }
   .task-form { gap: 18px; }
+  .module3-existing-form { gap: 18px; }
+  .module3-action-row { display: grid; grid-template-columns: 1fr; }
   .field--large input { height: 70px; font-size: 20px; }
   .file-drop { grid-template-columns: auto minmax(0, 1fr); }
   .file-drop__action { display: none; }
