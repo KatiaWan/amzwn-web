@@ -117,13 +117,132 @@
     return `<!doctype html><html><head>${baseTag}${viewerStyles}</head><body>${html}</body></html>`;
   }
 
+  function addReportCopyControls(frameDocument) {
+    const buttonSelector = "button.negative-copy-button[data-copy-target]";
+    const phraseTargetId = "negative-phrase-copy";
+    const exactTargetId = "negative-exact-copy";
+    const maximumTextLength = 4096;
+    const maximumLineCount = 100;
+    const resetTimers = new Map();
+
+    const exactButton = frameDocument.querySelector(
+      `${buttonSelector}[data-copy-target="${exactTargetId}"]`
+    );
+    if (exactButton) {
+      exactButton.disabled = true;
+      exactButton.setAttribute("aria-disabled", "true");
+      exactButton.dataset.copyStatus = "blocked";
+    }
+
+    const restoreButton = (button, label) => {
+      window.clearTimeout(resetTimers.get(button));
+      const timer = window.setTimeout(() => {
+        button.textContent = label;
+        button.dataset.copyStatus = "idle";
+        resetTimers.delete(button);
+      }, 1800);
+      resetTimers.set(button, timer);
+    };
+
+    const showFeedback = (button, label, status, message) => {
+      button.textContent = message;
+      button.dataset.copyStatus = status;
+      button.setAttribute("aria-live", "polite");
+      restoreButton(button, label);
+    };
+
+    const normalizedPlainText = (value) => value
+      .replace(/\r\n?/g, "\n")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .join("\n");
+
+    const writePlainText = async (text) => {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      const field = document.createElement("textarea");
+      field.value = text;
+      field.setAttribute("readonly", "");
+      field.style.position = "fixed";
+      field.style.left = "-9999px";
+      document.body.append(field);
+      field.select();
+      const copied = document.execCommand("copy");
+      field.remove();
+      if (!copied) throw new Error("COPY_REJECTED");
+    };
+
+    const handleCopy = async (event) => {
+      const button = event.target.closest?.(buttonSelector);
+      if (!button || !frameDocument.contains(button)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+
+      const originalLabel = button.dataset.copyOriginalLabel || button.textContent;
+      button.dataset.copyOriginalLabel = originalLabel;
+      const targetId = button.getAttribute("data-copy-target");
+      if (!event.isTrusted) {
+        showFeedback(button, originalLabel, "blocked", "已拒绝非用户操作");
+        return;
+      }
+      if (button.disabled || targetId === exactTargetId) return;
+      if (targetId !== phraseTargetId || button.dataset.copyPending === "true") {
+        showFeedback(button, originalLabel, "blocked", "不支持的复制目标");
+        return;
+      }
+
+      const target = frameDocument.getElementById(phraseTargetId);
+      const isAllowedTarget = target?.tagName === "TEXTAREA" &&
+        target.hasAttribute("readonly") &&
+        target.getAttribute("aria-label") === "建议词组否定";
+      const rawText = isAllowedTarget ? target.value : "";
+      const text = normalizedPlainText(rawText);
+      const lineCount = text ? text.split("\n").length : 0;
+      if (
+        !isAllowedTarget || !text || rawText.includes("\0") ||
+        rawText.length > maximumTextLength || text.length > maximumTextLength ||
+        lineCount > maximumLineCount
+      ) {
+        showFeedback(button, originalLabel, "failed", "复制失败：内容无效");
+        return;
+      }
+
+      button.dataset.copyPending = "true";
+      button.textContent = "正在复制…";
+      try {
+        await writePlainText(text);
+        showFeedback(button, originalLabel, "success", "已复制");
+      } catch {
+        showFeedback(button, originalLabel, "failed", "复制失败，请手动复制");
+      } finally {
+        delete button.dataset.copyPending;
+      }
+    };
+
+    frameDocument.addEventListener("click", handleCopy, true);
+    return () => {
+      frameDocument.removeEventListener("click", handleCopy, true);
+      resetTimers.forEach((timer) => window.clearTimeout(timer));
+      resetTimers.clear();
+    };
+  }
+
   function addReportControls(frame) {
     const frameDocument = frame.contentDocument;
+    if (!frameDocument) return;
+    removeReportControls();
+    const destroyCopyControls = addReportCopyControls(frameDocument);
     const tableShell = frameDocument?.querySelector(".table-shell");
     const table = tableShell?.querySelector("table");
     const reportContent = frameDocument?.querySelector(".wrap") || frameDocument?.body;
     const rows = table ? Array.from(table.querySelectorAll("tbody tr")) : [];
-    if (!tableShell || !table || !reportContent || !rows.length) return;
+    if (!tableShell || !table || !reportContent || !rows.length) {
+      destroyReportControls = destroyCopyControls;
+      return;
+    }
 
     const signalDefinitions = {
       "守住放大": { key: "scale", label: "↑ 放量", detail: "已出单 · ACOS达标" },
@@ -167,7 +286,6 @@
       keywordCell.after(signalCell);
     });
 
-    removeReportControls();
     stage.classList.add("report-stage--expanded");
 
     const pageSize = 50;
@@ -392,6 +510,7 @@
     scheduleFrameSize();
 
     destroyReportControls = () => {
+      destroyCopyControls();
       followRail.removeEventListener("scroll", syncFromRail);
       followRail.removeEventListener("keydown", moveRailWithKeyboard);
       tableShell.removeEventListener("scroll", syncFromTable);
