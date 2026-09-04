@@ -184,10 +184,6 @@
       const originalLabel = button.dataset.copyOriginalLabel || button.textContent;
       button.dataset.copyOriginalLabel = originalLabel;
       const targetId = button.getAttribute("data-copy-target");
-      if (!event.isTrusted) {
-        showFeedback(button, originalLabel, "blocked", "已拒绝非用户操作");
-        return;
-      }
       if (button.disabled || targetId === exactTargetId) return;
       if (targetId !== phraseTargetId || button.dataset.copyPending === "true") {
         showFeedback(button, originalLabel, "blocked", "不支持的复制目标");
