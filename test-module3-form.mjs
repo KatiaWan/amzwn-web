@@ -37,6 +37,30 @@ const prepared = helpers.prepareMediaPackage({ products: [] }, {
 });
 assert.equal(prepared.configRevision, 2);
 assert.equal(prepared.humanReview.status, "未确认");
+assert.match(helpers.statusDetail({
+  status: "需人工确认",
+  ownAsin: "B0AAA11111",
+  competitorAsins: ["B0BBB22222", "B0CCC33333", "B0DDD44444"],
+  mediaValidationStatus: "human_verified_complete",
+  reviewReason: "请核对档案与媒体展示"
+}), /人工确认原因：请核对档案与媒体展示/);
+const confirmable = {
+  status: "图片待验",
+  structureDigest: "a".repeat(64),
+  confirmationBlockers: []
+};
+assert.equal(helpers.canConfirmMedia(confirmable), true);
+assert.equal(helpers.canConfirmMedia({ ...confirmable, confirmationBlockers: ["图片为空"] }), false);
+assert.equal(helpers.canAuthorizePaid({
+  status: "待档案费用授权",
+  mediaValidationStatus: "human_verified_complete",
+  confirmationBlockers: []
+}), true);
+assert.equal(helpers.canAuthorizePaid({
+  status: "待档案费用授权",
+  mediaValidationStatus: "structure_validated",
+  confirmationBlockers: []
+}), false);
 
 console.log(JSON.stringify({
   status: "ok",

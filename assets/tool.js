@@ -43,6 +43,7 @@
   let latestTasks = [];
   let currentModule3 = null;
   let currentMediaDigest = null;
+  let currentMediaBlockers = [];
 
   const statusCopy = {
     "待处理": "已排队，等待工人领取",
@@ -123,8 +124,16 @@
   }
 
   function updateModule3Actions(status) {
-    module3ConfirmMedia.disabled = status !== "图片待验" || !currentMediaDigest;
-    module3AuthorizePaid.disabled = status !== "待档案费用授权";
+    const actionState = currentModule3
+      ? {
+        ...currentModule3,
+        status,
+        structureDigest: currentMediaDigest,
+        confirmationBlockers: currentMediaBlockers
+      }
+      : null;
+    module3ConfirmMedia.disabled = !module3.canConfirmMedia(actionState);
+    module3AuthorizePaid.disabled = !module3.canAuthorizePaid(actionState);
     module3ConfirmResult.disabled = status !== "需人工确认";
     module3Import.disabled = !["待图片采集", "图片待验"].includes(status);
   }
@@ -143,6 +152,7 @@
     const taskId = module3TaskSelect.value;
     currentModule3 = null;
     currentMediaDigest = null;
+    currentMediaBlockers = [];
     if (!taskId) {
       module3State.textContent = "未选择任务";
       module3StateDetail.textContent = "历史任务没有模块3记录时显示“未申请”。";
@@ -156,12 +166,19 @@
       });
       currentModule3 = result.module3;
       currentMediaDigest = currentModule3.structureDigest || null;
+      currentMediaBlockers = Array.isArray(currentModule3.confirmationBlockers)
+        ? currentModule3.confirmationBlockers.filter(Boolean)
+        : [];
       module3State.textContent = currentModule3.status;
-      module3StateDetail.textContent = currentModule3.status === "未申请"
-        ? "该历史任务尚未申请模块3，请先使用上方“已完成任务补充”。"
-        : `${currentModule3.ownAsin} · ${currentModule3.competitorAsins.length} 个竞品 · 媒体 ${currentModule3.mediaValidationStatus}`;
+      module3StateDetail.textContent = module3.statusDetail(currentModule3);
       updateModule3Actions(currentModule3.status);
-      setMessage(module3MediaStatus, "状态已更新。", "success");
+      setMessage(
+        module3MediaStatus,
+        currentMediaBlockers.length
+          ? `媒体完整性仍有阻断项：${currentMediaBlockers.join("；")}`
+          : "状态已更新。",
+        currentMediaBlockers.length ? "error" : "success"
+      );
     } catch (error) {
       module3State.textContent = "读取失败";
       updateModule3Actions("");
@@ -462,7 +479,17 @@
         body: JSON.stringify(mediaPackage)
       });
       currentMediaDigest = imported.structureDigest;
-      setMessage(module3MediaStatus, "结构验证通过。请由任务所有者逐项核对后再确认完整。", "success");
+      const blockers = Array.isArray(imported.confirmationBlockers)
+        ? imported.confirmationBlockers.filter(Boolean)
+        : [];
+      currentMediaBlockers = blockers;
+      setMessage(
+        module3MediaStatus,
+        blockers.length
+          ? `结构验证通过，但尚不能确认完整：${blockers.join("；")}`
+          : "结构验证通过。请由任务所有者逐项核对后再确认完整。",
+        blockers.length ? "error" : "success"
+      );
       await loadModule3Status();
     } catch (error) {
       setMessage(module3MediaStatus, app.messageFor(error, "媒体清单导入失败。"), "error");

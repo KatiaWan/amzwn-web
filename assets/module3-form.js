@@ -51,11 +51,44 @@
     });
   }
 
+  function statusDetail(record) {
+    if (!record || record.status === "未申请") {
+      return "该历史任务尚未申请模块3，请先使用上方“已完成任务补充”。";
+    }
+    const base = `${record.ownAsin} · ${(record.competitorAsins || []).length} 个竞品 · 媒体 ${record.mediaValidationStatus}`;
+    if (record.status !== "需人工确认") return base;
+    const reason = String(record.reviewReason || "").trim();
+    return `${base} · 人工确认原因：${reason || "请核对模块3报告后确认结果"}`;
+  }
+
+  function canConfirmMedia(record) {
+    return Boolean(
+      record &&
+      record.status === "图片待验" &&
+      record.structureDigest &&
+      Array.isArray(record.confirmationBlockers) &&
+      record.confirmationBlockers.length === 0
+    );
+  }
+
+  function canAuthorizePaid(record) {
+    return Boolean(
+      record &&
+      record.status === "待档案费用授权" &&
+      record.mediaValidationStatus === "human_verified_complete" &&
+      Array.isArray(record.confirmationBlockers) &&
+      record.confirmationBlockers.length === 0
+    );
+  }
+
   global.AMZWN_MODULE3 = Object.freeze({
     normalizeAsin: normalizeAsin,
     normalizeCompetitors: normalizeCompetitors,
     normalizeCoreKeyword: normalizeCoreKeyword,
     apiEndpoint: apiEndpoint,
-    prepareMediaPackage: prepareMediaPackage
+    prepareMediaPackage: prepareMediaPackage,
+    statusDetail: statusDetail,
+    canConfirmMedia: canConfirmMedia,
+    canAuthorizePaid: canAuthorizePaid
   });
 })(typeof window === "object" ? window : globalThis);
