@@ -4,8 +4,16 @@ import vm from "node:vm";
 
 const context = vm.createContext({ URL });
 const source = await fs.readFile(new URL("./assets/module3-form.js", import.meta.url), "utf8");
+const toolHtml = await fs.readFile(new URL("./tool/index.html", import.meta.url), "utf8");
+const styles = await fs.readFile(new URL("./assets/styles.css", import.meta.url), "utf8");
 vm.runInContext(source, context);
 const helpers = context.AMZWN_MODULE3;
+
+assert.equal((toolHtml.match(/class="[^"]*module3-media-control[^"]*"/g) ?? []).length, 3);
+assert.match(toolHtml, /styles\.css\?v=20260905-module3-layout-v1/);
+assert.match(toolHtml, /<span class="file-field__label">当前状态<\/span>\s*<div class="module3-state-card">/);
+assert.match(styles, /\.module3-media-control \{[^}]*grid-template-rows:\s*auto 92px;[^}]*margin:\s*0;/);
+assert.match(styles, /\.module3-media-control > select,[^{]+\{[^}]*height:\s*92px;[^}]*min-height:\s*92px;/);
 
 assert.equal(helpers.normalizeAsin(" b0aaa11111 "), "B0AAA11111");
 assert.throws(() => helpers.normalizeAsin("invalid"), /ASIN/);

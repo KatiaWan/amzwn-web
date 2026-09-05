@@ -14,7 +14,7 @@
   <meta name="twitter:description" content="热度 · 竞争 · 实绩 · 打法，一张表看清关键词下一步动作。">
   <meta name="twitter:image" content="https://katiawan.github.io/amzwn-web/assets/og.png">
   <title>AMZWN 关键词作战｜提交任务</title>
-  <link rel="stylesheet" href="../assets/styles.css?v=20260903-phase8-v1">
+  <link rel="stylesheet" href="../assets/styles.css?v=20260905-module3-layout-v1">
 </head>
 <body class="app-page">
   <div class="page-glow page-glow--pink" aria-hidden="true"></div>
@@ -104,9 +104,12 @@
         <div><h2 id="module3-media-title">任务专属媒体清单</h2><p>先选择已配置的任务，再导入 product-media.json。服务器只验结构；最终完整性必须由任务所有者人工确认。</p></div>
       </div>
       <div class="module3-media-grid">
-        <label class="field"><span>模块3任务</span><select id="module3-task-select"><option value="">请选择任务</option></select></label>
-        <div class="module3-state-card"><span>当前状态</span><strong id="module3-state">未选择任务</strong><small id="module3-state-detail">历史任务没有模块3记录时显示“未申请”。</small></div>
-        <div class="file-field">
+        <label class="field module3-media-control"><span>模块3任务</span><select id="module3-task-select"><option value="">请选择任务</option></select></label>
+        <div class="module3-media-control">
+          <span class="file-field__label">当前状态</span>
+          <div class="module3-state-card"><strong id="module3-state">未选择任务</strong><small id="module3-state-detail">历史任务没有模块3记录时显示“未申请”。</small></div>
+        </div>
+        <div class="file-field module3-media-control">
           <span class="file-field__label">product-media.json</span>
           <input id="module3-media-file" class="visually-hidden" type="file" accept="application/json,.json">
           <label class="file-drop file-drop--compact" for="module3-media-file"><span class="file-drop__icon" aria-hidden="true">↥</span><span class="file-drop__copy"><strong id="module3-media-file-title">选择媒体清单</strong><small>最多 256 KB；不会下载或探测清单中的 URL</small></span><span class="file-drop__action">选择文件</span></label>
