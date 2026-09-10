@@ -9,7 +9,6 @@
   const reloadButton = document.querySelector("#reload-report");
   const taskId = new URLSearchParams(window.location.search).get("task") || "";
   let task = null;
-  let reportOwnerId = null;
   let destroyReportControls = null;
 
   function removeReportControls() {
@@ -547,7 +546,7 @@
       frame.title = `${task.asin} 关键词作战总表`;
       // Scripts stay blocked. Same-origin access is enabled only so the parent
       // viewer can filter rows, resize the report, and sync the follow scrollbar.
-      frame.setAttribute("sandbox", "allow-same-origin allow-top-navigation-by-user-activation");
+      frame.setAttribute("sandbox", "allow-same-origin");
       frame.setAttribute("referrerpolicy", "no-referrer");
       frame.addEventListener("load", () => {
         try {
@@ -569,7 +568,6 @@
   }
 
   async function loadReport() {
-    window.AMZWN_RETAINED_SET?.clear();
     reloadButton.disabled = true;
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(taskId)) {
       setStatus("失败");
@@ -600,9 +598,6 @@
       }
 
       task = result.data;
-      const currentOwner = await app.currentSession();
-      if (!currentOwner || currentOwner.user.id !== reportOwnerId) return;
-      window.dispatchEvent(new CustomEvent("amzwn:module4-context", {detail:{userId:reportOwnerId,task}}));
       document.title = `AMZWN｜${task.asin} 关键词报告`;
       reportTitle.textContent = `${task.asin} 关键词作战总表`;
       reportTime.textContent = `更新于 ${app.formatDate(task.updated_at)}`;
@@ -640,7 +635,7 @@
 
   app.requireSession("../")
     .then((session) => {
-      if (session) { reportOwnerId = session.user.id; loadReport(); }
+      if (session) loadReport();
     })
     .catch(() => window.location.replace("../"));
 })();
