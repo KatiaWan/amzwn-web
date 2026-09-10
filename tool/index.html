@@ -14,7 +14,8 @@
   <meta name="twitter:description" content="热度 · 竞争 · 实绩 · 打法，一张表看清关键词下一步动作。">
   <meta name="twitter:image" content="https://katiawan.github.io/amzwn-web/assets/og.png">
   <title>AMZWN 关键词作战｜提交任务</title>
-  <link rel="stylesheet" href="../assets/styles.css?v=20260905-module3-layout-v1">
+  <link rel="stylesheet" href="../assets/styles.css?v=20260905-module4-flow-v1">
+  <link rel="stylesheet" href="../assets/module4-retained.css">
 </head>
 <body class="app-page">
   <div class="page-glow page-glow--pink" aria-hidden="true"></div>
@@ -125,6 +126,73 @@
       <p class="form-status" id="module3-media-status" role="status" aria-live="polite">尚未导入媒体清单。</p>
     </section>
 
+    <section class="submit-card module4-card" id="module4" aria-labelledby="module4-title">
+      <div class="submit-card__intro">
+        <span class="section-number module4-number">M4</span>
+        <div><h2 id="module4-title">图片与卖点诊断</h2><p>所有核对、编辑、费用授权和最终确认都在这里完成。报告页只读，可随时返回修改。</p></div>
+      </div>
+
+      <nav class="module4-quick-nav" aria-label="模块4快捷定位">
+        <a href="#module4-start">选择任务</a><a href="#module4-materials">核对资料</a>
+        <a href="#module4-questions">买家问题</a><a href="#module4-facts">产品事实</a>
+        <a href="#module4-fee">范围与费用</a><a href="#module4-progress">运行状态</a>
+        <a href="#module4-result">报告确认</a>
+      </nav>
+
+      <div class="module4-section" id="module4-start">
+        <div class="module4-section-heading"><div><span>01</span><h3>选择已完成任务</h3></div><p>只有模块3和正式媒体清单都已确认的任务才能进入。</p></div>
+        <div class="module4-start-row">
+          <label class="field"><span>自己的任务</span><select id="module4-task-select"><option value="">请选择任务</option></select></label>
+          <button class="secondary-button" id="module4-initialize" type="button">进入模块4</button>
+          <button class="secondary-button" id="module4-refresh" type="button">刷新状态</button>
+        </div>
+        <p class="form-status" id="module4-message" role="status" aria-live="polite">请选择任务后检查开放条件。</p>
+      </div>
+
+      <div class="module4-section" id="module4-materials">
+        <div class="module4-section-heading"><div><span>02</span><h3>核对本品、竞品和图片</h3></div><p id="module4-material-count">尚未读取任务资料。</p></div>
+        <div class="module4-prerequisites" id="module4-prerequisites"><div class="module4-empty">未选择任务</div></div>
+        <div class="module4-media-strip" id="module4-media-strip" aria-label="正式媒体预览"></div>
+        <p class="module4-selection-summary" id="module4-selection-status">进入任务后可选择本次分析图片。</p>
+        <div class="module4-actions"><button class="secondary-button" id="module4-save-selection" type="button">保存选图并更新报价</button></div>
+      </div>
+
+      <div class="module4-section" id="module4-questions">
+        <div class="module4-section-heading"><div><span>03</span><h3 id="module4-question-title">5—7项买家下单前确认</h3></div><p>AI按当前产品资料提炼问题；先核对草案报价并授权，再生成。返回后可编辑、删除或增加。</p></div>
+        <dl class="module4-fee-grid" id="module4-draft-fee-grid"><div><dt>草案报价</dt><dd>进入任务后读取</dd></div></dl>
+        <label class="module4-check"><input id="module4-draft-authorize-check" type="checkbox"><span>我确认以上草案调用数量、参数和本步骤费用上限，授权生成当前产品的问题草案。</span></label>
+        <div class="module4-actions"><button class="primary-button primary-button--fit" id="module4-generate-questions" type="button">授权并生成AI问题草案</button><button class="secondary-button" id="module4-fallback-questions" type="button">使用手动规则备用草案（不计费）</button></div>
+        <div class="module4-notice" id="module4-draft-notice">进入模块4后读取产品资料与草案报价。</div>
+        <div class="module4-question-list" id="module4-question-list"></div>
+        <div class="module4-actions"><button class="secondary-button" id="module4-add-question" type="button">增加问题</button><button class="secondary-button" id="module4-save-questions" type="button">保存修改</button><button class="primary-button primary-button--fit" id="module4-confirm-questions" type="button">确认问题清单</button></div>
+      </div>
+
+      <div class="module4-section" id="module4-facts">
+        <div class="module4-section-heading"><div><span>04</span><h3>确认产品事实</h3></div><p>不知道就标记“未知”；系统不会替你推断产品能力。</p></div>
+        <div class="module4-fact-grid" id="module4-fact-grid"></div>
+        <div class="module4-actions"><button class="secondary-button" id="module4-save-facts" type="button">保存产品事实</button><button class="primary-button primary-button--fit" id="module4-confirm-facts" type="button">确认产品事实</button></div>
+      </div>
+
+      <div class="module4-section" id="module4-fee">
+        <div class="module4-section-heading"><div><span>05</span><h3>确认分析范围与费用上限</h3></div><p>授权只绑定当前任务、修订、ASIN、媒体集合和下面的参数；修改后自动失效。</p></div>
+        <p class="module4-selection-summary" id="module4-selection-summary">等待服务端验证并提供本次选图集合。</p>
+        <div class="module4-selected-media" id="module4-selected-media" aria-label="本次授权的准确选图集合"></div>
+        <dl class="module4-fee-grid" id="module4-fee-grid"><div><dt>模型</dt><dd>—</dd></div></dl>
+        <label class="module4-check"><input id="module4-authorize-check" type="checkbox"><span>我确认以上调用数量、参数和费用上限，并授权当前修订进入队列。</span></label>
+        <div class="module4-actions"><button class="primary-button primary-button--fit" id="module4-authorize" type="button">授权并开始分析</button></div>
+      </div>
+
+      <div class="module4-section" id="module4-progress">
+        <div class="module4-section-heading"><div><span>06</span><h3>运行状态</h3></div><p>失败或调用是否计费不明确时会停住，不自动重试，也不会自动改用base64。</p></div>
+        <div class="module4-progress-card" id="module4-progress-card"><strong>尚未开始</strong><p>完成前面的确认与授权后，这里显示真实状态。</p></div>
+      </div>
+
+      <div class="module4-section" id="module4-result">
+        <div class="module4-section-heading"><div><span>07</span><h3>查看并最终确认报告05</h3></div><p>最终确认后锁定；如需修改，请先从报告返回本页。</p></div>
+        <div class="module4-actions"><a class="secondary-button module4-report-link" id="module4-report-link" href="#" hidden>打开报告05</a><button class="primary-button primary-button--fit" id="module4-final-confirm" type="button">最终确认并锁定</button></div>
+      </div>
+    </section>
+
     <section class="history-section" aria-labelledby="history-title">
       <div class="section-heading">
         <div class="submit-card__intro submit-card__intro--compact">
@@ -153,6 +221,10 @@
   <script src="../assets/config.js?v=20260903-phase8-v1"></script>
   <script src="../assets/supabase-client.js"></script>
   <script src="../assets/module3-form.js?v=20260904-module3-local-v2"></script>
-  <script src="../assets/tool.js?v=20260904-module3-local-v2"></script>
+  <script src="../assets/module4-set-contract.js"></script>
+  <script src="../assets/module4-set-packet.js"></script>
+  <script src="../assets/module4-retained.js"></script>
+  <script src="../assets/module4-form.js?v=20260905-module4-review-v2"></script>
+  <script src="../assets/tool.js?v=20260905-module4-flow-v1"></script>
 </body>
 </html>

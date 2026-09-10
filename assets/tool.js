@@ -39,6 +39,9 @@
   const module3AuthorizePaid = document.querySelector("#module3-authorize-paid");
   const module3ConfirmResult = document.querySelector("#module3-confirm-result");
   let session = null;
+  let sessionVersion = 0;
+  let taskLoadSequence = 0;
+  let authEventSeen = false;
   let pollTimer = null;
   let latestTasks = [];
   let currentModule3 = null;
@@ -273,22 +276,29 @@
   }
 
   async function loadTasks() {
+    if (!session?.user?.id) return;
+    const owner = session.user.id, version = sessionVersion, request = ++taskLoadSequence;
     refreshButton.disabled = true;
     refreshButton.textContent = "刷新中…";
     try {
       const result = await app.client
         .from("keyword_tasks")
         .select("id,asin,status,report_url,failure_reason,created_at,updated_at")
+        .eq("user_id", owner)
         .order("created_at", { ascending: false })
         .limit(10);
+      if (request !== taskLoadSequence || version !== sessionVersion || session?.user?.id !== owner) return;
       if (result.error) throw result.error;
       latestTasks = result.data || [];
       renderTasks(latestTasks);
       fillTaskSelect(existingTaskSelect, latestTasks, true);
       fillTaskSelect(module3TaskSelect, latestTasks, true);
+      window.dispatchEvent(new CustomEvent("amzwn:tasks-loaded", { detail: { tasks: latestTasks, session } }));
     } catch (error) {
+      if (request !== taskLoadSequence || version !== sessionVersion) return;
       renderEmpty("任务读取失败", app.messageFor(error, "请稍后点击刷新状态。"));
     } finally {
+      if (request !== taskLoadSequence || version !== sessionVersion) return;
       refreshButton.disabled = false;
       refreshButton.textContent = "刷新状态";
     }
@@ -551,22 +561,50 @@
   refreshButton.addEventListener("click", loadTasks);
   logoutButton.addEventListener("click", async () => {
     logoutButton.disabled = true;
+    sessionVersion++; taskLoadSequence++;
+    window.dispatchEvent(new CustomEvent("amzwn:explicit-logout", { detail: { userId: session?.user?.id } }));
     await app.client.auth.signOut();
     window.location.replace("../");
   });
 
-  app.requireSession("../")
-    .then(async (activeSession) => {
-      if (!activeSession) return;
-      session = activeSession;
-      accountEmail.textContent = session.user.email || "已登录";
-      await verifySecurityApi(activeSession);
-      shell.classList.remove("is-loading");
-      shell.setAttribute("aria-busy", "false");
-      loadTasks();
-    })
-    .catch((error) => {
-      accountEmail.textContent = "安全验证未通过";
-      setSecurityStatus(error?.message || "安全接口暂不可用，请稍后重试。", "failed");
-    });
+  function acceptSession(next, event) {
+    const changedOwner = next?.user?.id !== session?.user?.id;
+    const version = ++sessionVersion;
+    taskLoadSequence++;
+    session = next;
+    if (changedOwner || !next) {
+      latestTasks = [];
+      renderTasks([]);
+      fillTaskSelect(existingTaskSelect, [], true);
+      fillTaskSelect(module3TaskSelect, [], true);
+      loadModule3Status();
+    }
+    window.dispatchEvent(new CustomEvent("amzwn:session-changed", { detail: { session: next, event } }));
+    if (!next) return;
+    // Run outside Supabase's auth callback; reuse the existing API and task loader.
+    window.setTimeout(async () => {
+      if (version !== sessionVersion) return;
+      try {
+        await verifySecurityApi(next);
+        if (version !== sessionVersion) return;
+        accountEmail.textContent = next.user.email || "已登录";
+        shell.classList.remove("is-loading");
+        shell.setAttribute("aria-busy", "false");
+        await loadTasks();
+      } catch (error) {
+        if (version !== sessionVersion) return;
+        accountEmail.textContent = "安全验证未通过";
+        setSecurityStatus(error?.message || "安全接口暂不可用，请稍后重试。", "failed");
+      }
+    }, 0);
+  }
+  app.client.auth.onAuthStateChange((event, next) => {
+    authEventSeen = true;
+    acceptSession(next, event);
+  });
+  app.requireSession("../").then((activeSession) => {
+    if (!authEventSeen && activeSession) acceptSession(activeSession, "INITIAL_SESSION");
+  }).catch((error) => {
+    if (!authEventSeen) setSecurityStatus(error?.message || "安全验证未通过", "failed");
+  });
 })();
