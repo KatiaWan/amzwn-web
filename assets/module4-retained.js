@@ -52,3 +52,42 @@ global.addEventListener('amzwn:module4-context',e=>show(e.detail));global.addEve
 global.AMZWN?.client?.auth?.onAuthStateChange((event,session)=>{if(!session||session.user.id!==context?.userId)show(null);});
 global.AMZWN_RETAINED_SET=Object.freeze({validate,clear:()=>show(null)});
 })(window);
+
+(function(global){'use strict';
+const tool=document.getElementById('module4');if(!tool)return;const root=document.createElement('section');root.id='module4-set-preparation';root.className='m4-retained';root.hidden=true;
+const legacy=['module4-materials','module4-questions','module4-facts','module4-fee','module4-progress','module4-result'].map(id=>document.getElementById(id)).concat(tool.querySelector('.module4-quick-nav')).filter(Boolean);const anchor=document.getElementById('module4-materials');if(!anchor)return;anchor.before(root);
+let ticket=0,current=null;const node=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};
+function clear(){ticket++;current=null;root.hidden=true;root.replaceChildren();for(const n of legacy)n.hidden=false;}
+async function request(c,route='set-preparation',body){
+ const session=await global.AMZWN.currentSession();if(session?.user?.id!==c.userId)throw Error('账号已变化');const url=new URL(global.AMZWN.config.apiUrl);url.pathname='/api/module4/'+route;url.search='';url.hash='';if(!body)url.searchParams.set('taskId',c.task.id);
+ const r=await fetch(url,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+session.access_token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store',signal:AbortSignal.timeout(route==='set-execute'?75000:10000)});const d=await r.json();if((await global.AMZWN.currentSession())?.user?.id!==c.userId)throw Error('账号已变化');if(!r.ok||d.taskId!==c.task.id||d.asin!==c.task.asin)throw Error(d.message||'整套操作未完成');return d;
+}
+function render(c,d){
+ const p=d.preparation;root.replaceChildren();root.hidden=false;for(const n of legacy)n.hidden=Boolean(d.canSave||d.saved);
+ root.append(node('h2','本品六图 · 整套诊断'),node('p',c.task.asin+' · 仅 S01—S06，不含竞品'),node('p','当前状态：'+d.status));
+ root.append(node('p',!d.saved?'以下主题沿用此前本品六图核对内容，尚未保存和确认。':p.humanConfirmed?'已明确确认当前问题及未知事实状态。':'六图准备草稿已保存，尚未确认或执行。'));
+ const list=node('ul');for(const x of p.images)list.append(node('li',x.sampleId+' · 本品第'+x.sequence+'张'));root.append(list);
+ const inputs=[],guarded=[];let dirty=false;
+ for(const q of p.questions){const label=node('label','核对主题 '+(inputs.length+1)),field=node('textarea');field.value=q.question;field.maxLength=299;field.disabled=!d.canSave;field.setAttribute('aria-label','整套问题 '+q.id);field.addEventListener('input',()=>{dirty=true;for(const a of guarded)a.disabled=true;});label.append(field);root.append(label);inputs.push({id:q.id,field});}
+ root.append(node('p','产品事实均保持未知：图片宣传或展示不等于已验证性能。确认未知状态，不会把它改成已验证的产品能力。'));
+ const status=node('p');status.setAttribute('role','status');const base=()=>({taskId:c.task.id,expectedRevision:d.expectedRevision,expectedStateVersion:d.expectedStateVersion});
+ async function action(button,route,extra){const turn=ticket;for(const control of root.querySelectorAll('input,textarea,button'))control.disabled=true;status.textContent='正在处理……';try{const out=await request(c,route,extra===null?undefined:{...base(),...extra});if(turn!==ticket)return;render(c,out);if(route==='set-execute')global.dispatchEvent(new CustomEvent('amzwn:module4-context',{detail:c}));}catch(e){if(turn===ticket){status.textContent=e.message+'；请重新读取核对，不会自动重试。';reload.disabled=false;}}}
+ const save=node('button','一次保存六图、问题草稿与未知事实');save.type='button';save.disabled=!d.canSave;save.addEventListener('click',()=>action(save,'set-preparation',{questions:inputs.map(x=>({id:x.id,question:x.field.value.trim()})),facts:p.facts}));root.append(save);
+ function confirmation(label,buttonText,allowed,route,extra){const wrap=node('label'),box=node('input');box.type='checkbox';box.setAttribute('aria-label',label);box.disabled=!allowed;const button=node('button',buttonText);button.type='button';button.disabled=true;guarded.push(box,button);box.addEventListener('change',()=>{button.disabled=dirty||!allowed||!box.checked;});button.addEventListener('click',()=>{if(!dirty&&box.checked)action(button,route,{acknowledgement:true,...extra});});wrap.append(box,node('span',label));root.append(wrap,button);}
+ confirmation('我已核对这七个问题，并确认目前产品事实仍未知','确认问题与未知事实',d.canConfirm,'set-confirm',{preparationDigest:p.digest});
+ if(p.humanConfirmed&&d.status==='待费用授权'){
+  const quoteButton=node('button','读取本次整套报价');quoteButton.type='button';guarded.push(quoteButton);quoteButton.addEventListener('click',()=>{if(!dirty)action(quoteButton,'set-quote',null);});root.append(quoteButton);
+ }
+ if(d.quote){const q=d.quote;root.append(node('h3',q.simulation?'模拟报价（不会调用真实模型）':'本次整套报价'),node('p','本品六图一次请求；最多1次，不自动重试。模型 '+q.model+'，输入估算上界 '+q.maxInputTokens+' Token，输出上限 '+q.maxOutputTokens+' Token。'),node('p',q.simulation?'预算演练金额 ¥'+q.budgetEstimateCny.toFixed(2)+'；实际模型费用 ¥0。':'费用估算 ¥'+q.budgetEstimateCny.toFixed(2)+'，不是供应商保证的硬金额上限；最终以实际账单为准。'));
+  const details=node('details');details.append(node('summary','查看请求与报价绑定'),node('p','请求：'+d.requestSha256),node('p','报价：'+d.quoteSha256),node('p','价格依据：'+q.source));root.append(details);
+  const text=q.simulation?'我明确授权本次六图模拟执行，不调用真实模型':'我明确授权以上请求与估算费用，最多调用一次，不自动重试';
+  confirmation(text,'保存本次独立授权',d.canAuthorize,'set-authorize',{requestSha256:d.requestSha256,quoteSha256:d.quoteSha256,approvalText:text+'；ASIN '+c.task.asin+'；请求 '+d.requestSha256+'；估算 ¥'+q.budgetEstimateCny+'；不是硬金额上限。'});
+ }
+ if(d.status==='待处理'&&d.authorizationId){const run=node('button',d.simulation?'执行一次整套模拟':'执行一次整套分析');run.type='button';run.disabled=!d.executionEnabled;guarded.push(run);run.addEventListener('click',()=>{if(!dirty)action(run,'set-execute',{authorizationId:d.authorizationId});});root.append(run);}
+ const reload=node('button','重新读取整套状态');reload.type='button';reload.addEventListener('click',()=>show(c,true));root.append(reload,status);
+ if(!d.executionEnabled)root.append(node('p','真实执行保持关闭：可以核对准备资料，不能创建执行授权或调用模型。'));
+ if(d.receipt)root.append(node('p','本次执行已留存：'+({reserved:'已预留',in_flight:'调用中',published:'结果已发布',failed:'失败',unclear:'状态不明确'}[d.receipt.outcome]||'待核对')+'。不会自动重试。'+(d.receipt.chargeUnknown?'计费状态不明确，须核对留存记录。':'')));
+}
+async function show(c,force=false){if(!force&&c?.userId===current?.userId&&c?.task?.id===current?.task?.id)return;clear();if(!c?.userId||!c?.task?.id)return;current=c;const turn=ticket;try{const d=await request(c);if(turn===ticket)render(c,d);}catch(e){if(turn!==ticket)return;if((await global.AMZWN.currentSession())?.user?.id!==c.userId){if(turn===ticket)clear();return;}if(turn!==ticket)return;current=null;root.hidden=false;root.append(node('p','整套诊断：'+e.message));}}
+global.addEventListener('amzwn:module4-context',e=>show(e.detail));global.addEventListener('amzwn:explicit-logout',clear);global.addEventListener('amzwn:session-changed',e=>{if(!e.detail.session||e.detail.session.user.id!==current?.userId)clear();});global.AMZWN?.client?.auth?.onAuthStateChange((_,s)=>{if(!s||s.user.id!==current?.userId)clear();});
+})(window);
