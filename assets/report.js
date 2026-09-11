@@ -11,6 +11,7 @@
   let task = null;
   let reportOwnerId = null;
   let destroyReportControls = null;
+  let loadGeneration = 0;
 
   function removeReportControls() {
     if (destroyReportControls) {
@@ -527,7 +528,8 @@
     };
   }
 
-  async function renderCompletedReport() {
+  async function renderCompletedReport(turn = loadGeneration) {
+    const renderingTask = task, owner = reportOwnerId;
     if (!isValidReportUrl(task.report_url)) {
       setStatus("失败");
       showState("报告地址异常", "为了保护你的数据，本页拒绝打开不属于指定报告仓库的地址。", {
@@ -542,6 +544,7 @@
       const response = await fetch(task.report_url, { cache: "no-store", credentials: "omit" });
       if (!response.ok) throw new Error(`REPORT_HTTP_${response.status}`);
       const html = await response.text();
+      if (turn !== loadGeneration || owner !== reportOwnerId || (await app.currentSession())?.user?.id !== owner) return;
       const frame = document.createElement("iframe");
       frame.className = "report-frame";
       frame.title = `${task.asin} 关键词作战总表`;
@@ -551,6 +554,8 @@
       frame.setAttribute("referrerpolicy", "no-referrer");
       frame.addEventListener("load", () => {
         try {
+          if(turn !== loadGeneration || owner !== reportOwnerId || !frame.isConnected) return;
+          window.AMZWN_RETAINED_SET?.mountReport(frame,{userId:owner,task:renderingTask});
           addReportControls(frame);
         } catch {
           removeReportControls();
@@ -561,14 +566,16 @@
       frame.srcdoc = withBaseUrl(html, task.report_url);
       stage.replaceChildren(frame);
     } catch (error) {
+      if(turn !== loadGeneration) return;
       showState("报告载入失败", "网络暂时无法取回报告。请稍后刷新；报告文件本身不会丢失。", {
         label: "重新载入",
-        handler: renderCompletedReport
+        handler: loadReport
       });
     }
   }
 
   async function loadReport() {
+    const turn = ++loadGeneration;
     window.AMZWN_RETAINED_SET?.clear();
     reloadButton.disabled = true;
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(taskId)) {
@@ -588,6 +595,7 @@
         .select("id,asin,status,report_url,failure_reason,created_at,updated_at")
         .eq("id", taskId)
         .maybeSingle();
+      if (turn !== loadGeneration) return;
       if (result.error) throw result.error;
       if (!result.data) {
         setStatus("失败");
@@ -601,7 +609,7 @@
 
       task = result.data;
       const currentOwner = await app.currentSession();
-      if (!currentOwner || currentOwner.user.id !== reportOwnerId) return;
+      if (turn !== loadGeneration || !currentOwner || currentOwner.user.id !== reportOwnerId) return;
       window.dispatchEvent(new CustomEvent("amzwn:module4-context", {detail:{userId:reportOwnerId,task}}));
       document.title = `AMZWN｜${task.asin} 关键词报告`;
       reportTitle.textContent = `${task.asin} 关键词作战总表`;
@@ -609,7 +617,7 @@
       setStatus(task.status);
 
       if (task.status === "已完成" && task.report_url) {
-        await renderCompletedReport();
+        await renderCompletedReport(turn);
       } else if (task.status === "失败") {
         showState("这次分析没有完成", task.failure_reason || "请返回任务页重新提交；原任务不会影响下一次分析。", {
           label: "返回任务列表",
@@ -622,6 +630,7 @@
         });
       }
     } catch (error) {
+      if(turn !== loadGeneration) return;
       setStatus("失败");
       reportTime.textContent = "读取失败";
       showState("暂时无法读取任务", app.messageFor(error, "请检查网络后再试。"), {
@@ -634,10 +643,13 @@
   }
 
   reloadButton.addEventListener("click", () => {
-    if (task?.status === "已完成") renderCompletedReport();
-    else loadReport();
+    loadReport();
   });
 
+  const clearAccount = () => { loadGeneration++; task=null; reportOwnerId=null; window.AMZWN_RETAINED_SET?.clear(); setStatus('无访问权限'); showState('请重新登录','账号已变化，请返回任务列表重新打开。'); };
+  window.addEventListener('amzwn:explicit-logout',clearAccount);
+  window.addEventListener('amzwn:session-changed',e=>{if(!e.detail.session||e.detail.session.user.id!==reportOwnerId)clearAccount();});
+  app.client.auth?.onAuthStateChange((_,session)=>{if(reportOwnerId&&(!session||session.user.id!==reportOwnerId))clearAccount();});
   app.requireSession("../")
     .then((session) => {
       if (session) { reportOwnerId = session.user.id; loadReport(); }
