@@ -3,7 +3,7 @@ const check=(v,m)=>{if(!v)throw Error(m);},validate=global.M4SetPacket.validate;
 const labels={answered:'已有回答',partial:'部分回答',missing:'未覆盖（待判断必要性）',unknown:'未知',not_applicable:'不适用'};
 function database(){return new Promise((resolve,reject)=>{const r=indexedDB.open('amzwn-module4-local-results',1);r.onupgradeneeded=()=>r.result.createObjectStore('records');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(Error('无法打开本地结果存储'));});}
 async function storage(key,value){const db=await database();try{return await new Promise((resolve,reject)=>{const t=db.transaction('records',value===undefined?'readonly':'readwrite'),s=t.objectStore('records'),r=value===undefined?s.get(key):s.put(value,key);let result;r.onsuccess=()=>{result=r.result;};t.oncomplete=()=>resolve(result);t.onerror=()=>reject(Error('本地结果保存失败'));t.onabort=t.onerror;});}finally{db.close();}}
-let context=null,generation=0,active=null,feedback={},cloud=null,readState="loading";const root=document.createElement('section');root.id='module4-retained';root.className='m4-retained';root.hidden=true;
+let context=null,generation=0,active=null,feedback={},editorial=null,cloud=null,readState="loading";const root=document.createElement('section');root.id='module4-retained';root.className='m4-retained';root.hidden=true;
 const tool=document.getElementById('module4'),stage=document.getElementById('report-stage');if(tool)tool.prepend(root);else if(!stage)return;
 const node=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};
 const key=c=>[c.userId,c.task.id,c.task.asin].map(encodeURIComponent).join(':');
@@ -53,13 +53,36 @@ async function remote(c,route,body){
  const data=await res.json();const current=await global.AMZWN.currentSession();check(current?.user?.id===c.userId,'账号已变化');
  if(!res.ok){const error=Error(data.message||'服务端结果暂不可用');error.status=res.status;throw error;}return data;
 }
-async function show(next){closeImageViewer(false);const ticket=++generation;context=next;active=null;feedback={};cloud=null;readState='loading';root.replaceChildren();if(!next&&reportHost){readState='forbidden';reportState();root.remove();reportHost=null;}root.hidden=!next?.userId||!next?.task?.id||!/^B[A-Z0-9]{9}$/.test(next?.task?.asin||'');if(root.hidden)return;
+async function validateEditorial(e,c,v){
+ const valid=(ok)=>check(ok,'业务编辑记录与当前任务不匹配');
+ const hash=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(x=>x.toString(16).padStart(2,'0')).join('');
+ valid(e&&e.format==='M4_BUSINESS_EDITORIAL_V1'&&e.source==='LOCAL_EDITORIAL'&&JSON.stringify(e).length<=12000000&&Number.isSafeInteger(e.revision)&&e.revision>0);
+ const b=e.binding,p=v.packet;valid(b&&b.userId===c.userId&&b.taskId===c.task.id&&b.asin===c.task.asin&&b.requestSha256===p.record.requestSha256&&b.responseSha256===p.record.responseSha256);
+ const text=x=>typeof x==='string'&&x.length>0&&x.length<=1600,unique=(xs,key)=>new Set(xs.map(x=>x[key])).size===xs.length;
+ valid(Array.isArray(e.media)&&e.media.length<=40&&unique(e.media,'id'));
+ const parts=JSON.parse(p.request).messages[0].content,ownMeta=Array.from({length:6},(_,i)=>JSON.parse(parts[1+i*2].text)),images=new Map();
+ for(const m of e.media){valid(m&&typeof m.id==='string'&&/^[A-Z][A-Z0-9_-]*$/.test(m.id)&&/^B[A-Z0-9]{9}$/.test(m.asin)&&['own','competitor'].includes(m.role)&&typeof m.dataUrl==='string'&&m.dataUrl.length<=1000000&&/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(m.dataUrl));
+ const bytes=Uint8Array.from(atob(m.dataUrl.slice(23)),c=>c.charCodeAt(0));valid(await hash(bytes)===m.sha256);
+ if(m.role==='own')valid(m.asin===b.asin&&ownMeta.some(x=>x.sampleId===m.id&&x.imageFileSha256===m.sha256));else valid(m.asin!==b.asin);
+ images.set(m.id,m);}
+ valid(e.media.filter(m=>m.role==='own').length===6);
+ const refs=(ids,role,asin)=>Array.isArray(ids)&&ids.length>0&&ids.length<=6&&new Set(ids).size===ids.length&&ids.every(id=>images.has(id)&&images.get(id).role===role&&(!asin||images.get(id).asin===asin));
+ valid(Array.isArray(e.coverage)&&e.coverage.length===7&&unique(e.coverage,'id')&&e.coverage.every(x=>v.questions.some(q=>q.id===x.id)&&text(x.question)&&text(x.conclusion)&&text(x.reason)&&Array.isArray(x.evidence)&&(x.evidence.length===0||refs(x.evidence,'own'))));
+ valid(Array.isArray(e.ownImages)&&e.ownImages.length===6&&unique(e.ownImages,'id')&&e.ownImages.every(x=>refs([x.id],'own')&&['title','keep','observation','change','decision'].every(k=>text(x[k]))));
+ valid(Array.isArray(e.comparisons)&&e.comparisons.length<=8&&unique(e.comparisons,'asin'));
+ for(const comp of e.comparisons){valid(comp.asin!==b.asin&&text(comp.brand)&&Array.isArray(comp.rows)&&comp.rows.length===7&&unique(comp.rows,'id'));
+ for(const row of comp.rows){valid(v.questions.some(q=>q.id===row.id)&&['本品更清楚','竞品更清楚','接近','证据不足'].includes(row.verdict)&&['title','ownText','otherText','difference','change'].every(k=>text(row[k]))&&refs(row.own,'own')&&refs(row.other,'competitor',comp.asin)&&row.other.every(id=>images.get(id).variant===comp.variant));}}
+ return structuredClone(e);
+}
+
+async function show(next){closeImageViewer(false);const ticket=++generation;context=next;active=null;editorial=null;feedback={};cloud=null;readState='loading';root.replaceChildren();if(!next&&reportHost){readState='forbidden';reportState();root.remove();reportHost=null;}root.hidden=!next?.userId||!next?.task?.id||!/^B[A-Z0-9]{9}$/.test(next?.task?.asin||'');if(root.hidden)return;
  render();try{const session=await global.AMZWN.currentSession();if(ticket!==generation)return;if(session?.user?.id!==next.userId){root.hidden=true;context=null;return;}
  const data=await remote(next,'/api/module4/set-result');if(ticket!==generation)return;
  check(data.ok===true&&data.taskId===next.task.id&&data.asin===next.task.asin&&Object.hasOwn(data,'result'),'服务端结果归属无效');
  if(data.result){const r=data.result,v=await validate(r.bundle,next.task.asin,{allowSimulation:r.simulation===true});if(ticket!==generation)return;
  check(r.responseSha256===v.packet.record.responseSha256&&Number.isSafeInteger(r.version)&&r.version>0,'服务端结果版本无效');
- active=v;feedback=r.feedback||{};cloud={version:r.version,responseSha256:r.responseSha256};readState='server';render();
+ let business=null,businessInvalid=false;if(r.editorial){try{business=await validateEditorial(r.editorial,next,v);}catch{businessInvalid=true;}}if(ticket!==generation)return;
+ active=v;editorial=business;feedback=r.feedback||{};cloud={version:r.version,responseSha256:r.responseSha256};readState='server';render();if(businessInvalid)note('业务编辑记录校验未通过，仅显示原始任务结果。');
  try{await storage(key(next),{asin:next.task.asin,bundle:{packet:v.packet,review:v.review},feedback,serverSimulation:v.packet.source==='SIMULATION'});}catch{if(ticket===generation)note('服务端结果已读取；本地缓存不可用。');}
  }else{readState='pending';render();}
  }catch(e){if(ticket!==generation)return;readState='unavailable';
@@ -69,20 +92,65 @@ async function show(next){closeImageViewer(false);const ticket=++generation;cont
 }
 function render(){closeImageViewer(false);root.replaceChildren();reportState();if(!context)return;if(tool&&suppressTool){root.hidden=true;return;}root.hidden=false;root.append(node('h2','模块4 · 整套图片诊断'),node('p',context.task.asin+' · '+({loading:'正在读取任务结果',server:'已生成；尚未代表用户验收通过',pending:'服务端尚无整套结果',unavailable:'服务端暂不可用',forbidden:'无访问权限',offline:'离线本机留存，可能过期',local:'手动导入的本机留存，未上传'}[readState])));
  const bar=node('div');bar.className='m4-retained-actions';const input=node('input');input.type='file';input.accept='.json';input.setAttribute('aria-label','导入当前产品已留存的六图结果');const notice=node('p');notice.dataset.notice='';notice.setAttribute('role','status');
- input.addEventListener('change',async()=>{const file=input.files[0];input.value='';if(!file)return;const ticket=generation,c=context;try{check(file.size<=5000000,'结果包超过5MB');const bundle=JSON.parse(await file.text()),v=await validate(bundle,c.task.asin);if(ticket!==generation)return;let restored={};if(bundle.feedback){const f=bundle.feedback;check(f.format==='M4_AI_SET_FEEDBACK_V1'&&f.taskId===c.task.id&&f.analysisPacketSha256===v.packetSha256&&f.humanSigned===false&&f.businessQualityPass===null,'复核记录不属于当前任务或原始结果');check(f.feedback&&typeof f.feedback==='object'&&!Array.isArray(f.feedback),'复核格式无效');for(const [id,item]of Object.entries(f.feedback)){check(v.questions.some(q=>q.id===id)&&['unreviewed','accept','dispute','pending'].includes(item.decision)&&typeof item.note==='string'&&item.note.length<=2000,'复核内容无效');restored[id]={decision:item.decision,note:item.note};}}await storage(key(c),{asin:c.task.asin,bundle:{packet:v.packet,review:v.review},feedback:restored});if(ticket!==generation)return;active=v;feedback=restored;cloud=null;readState='local';render();note('结果已保存到当前账号与任务的本地空间。');}catch(e){if(ticket===generation)note(e.message);}});
+ input.addEventListener('change',async()=>{const file=input.files[0];input.value='';if(!file)return;const ticket=generation,c=context;try{check(file.size<=5000000,'结果包超过5MB');const bundle=JSON.parse(await file.text()),v=await validate(bundle,c.task.asin);if(ticket!==generation)return;let restored={};if(bundle.feedback){const f=bundle.feedback;check(f.format==='M4_AI_SET_FEEDBACK_V1'&&f.taskId===c.task.id&&f.analysisPacketSha256===v.packetSha256&&f.humanSigned===false&&f.businessQualityPass===null,'复核记录不属于当前任务或原始结果');check(f.feedback&&typeof f.feedback==='object'&&!Array.isArray(f.feedback),'复核格式无效');for(const [id,item]of Object.entries(f.feedback)){check(v.questions.some(q=>q.id===id)&&['unreviewed','accept','dispute','pending'].includes(item.decision)&&typeof item.note==='string'&&item.note.length<=2000,'复核内容无效');restored[id]={decision:item.decision,note:item.note};}}await storage(key(c),{asin:c.task.asin,bundle:{packet:v.packet,review:v.review},feedback:restored});if(ticket!==generation)return;active=v;editorial=null;feedback=restored;cloud=null;readState='local';render();note('结果已保存到当前账号与任务的本地空间。');}catch(e){if(ticket===generation)note(e.message);}});
  const retry=node('button','重新读取服务端结果');retry.type='button';retry.addEventListener('click',()=>show(context));if(tool)bar.append(input);bar.append(retry);if(tool){const link=node('a','在报告页查看');link.href='../report/?task='+encodeURIComponent(context.task.id)+'&module=05#report05';bar.append(link);}else{const link=node('a','返回工具页');link.href=new URL('../tool/?module4Task='+encodeURIComponent(context.task.id)+'#module4',location.href).href;link.target='_top';bar.append(link);}root.append(bar,notice);
  if(!active){root.append(node('p',readState==='loading'?'正在读取……':readState==='pending'?'此任务尚无整套AI结果，待生成。可导入该产品已有留存结果；不会套用其他产品或样例。':'当前没有可显示的结果。读取失败不代表尚未生成。'));return;}
  if(active.packet.source==='SIMULATION')root.append(node('p','模拟模型 / 离线测试结果：没有真实模型调用，不能作为业务诊断。'));
  const a=active.packet.analysis,view=structuredClone(a);if(active.review){for(const c of active.review.changes){const t=view.topics.find(t=>t.id===c.topic);t.coverage=c.coverage;t.reason=c.reason;if(c.evidence)t.evidence=c.evidence;}root.append(node('p','当前含与原始响应绑定的助手复核层，未代替用户确认。'));}
- root.append(node('p',active.review?'原始概览请展开下方“原始AI结果”；主题卡片显示复核层。':a.summary));
- const evidence=(parent,list)=>{const items=list.map(e=>({...e,url:active.images.find(i=>i.id===e.sampleId).url}));
-  for(const [index,e]of items.entries()){const figure=node('figure'),button=node('button'),image=node('img'),caption=node('figcaption',e.sampleId+' · '+e.location);figure.className='m4-evidence-card';button.type='button';button.className='m4-evidence-thumb';button.setAttribute('aria-label','放大整图 '+e.sampleId+' · '+e.location);image.src=e.url;image.alt=e.sampleId+' 完整原图缩略图';image.loading='lazy';image.decoding='async';image.width=320;image.height=224;button.append(image,node('span','点击放大整图'));button.addEventListener('click',()=>openImageViewer(items,index,button));figure.append(caption,button,node('p',e.observation));parent.append(figure);}
- };
- for(const t of view.topics){const card=node('article');card.className='m4-retained-topic';card.append(node('h3',active.questions.find(q=>q.id===t.id).question),node('b',labels[t.coverage]),node('p',t.reason));const ev=node('details');ev.append(node('summary','查看图证据'));evidence(ev,t.evidence);card.append(ev);const rev=node('details');rev.append(node('summary','按需复核此项'));const select=node('select');select.setAttribute('aria-label','复核 '+t.id);for(const [v,l]of [['unreviewed','未复核'],['accept','同意'],['dispute','有异议'],['pending','待确认']]){const o=node('option',l);o.value=v;select.append(o);}const field=node('textarea');field.maxLength=2000;field.placeholder='可选：说明异议或依据';const f=feedback[t.id]||{};select.value=['accept','dispute','pending'].includes(f.decision)?f.decision:'unreviewed';field.value=typeof f.note==='string'?f.note:'';
-  const save=async()=>{const ticket=generation,c=context,v=active;feedback[t.id]={decision:select.value,note:field.value};try{await storage(key(c),{asin:c.task.asin,bundle:{packet:v.packet,review:v.review},feedback:structuredClone(feedback),serverSimulation:v.packet.source==='SIMULATION'});if(ticket===generation)note(cloud?'复核已暂存本机；请点击保存到服务器。':'复核已保存到本机；不要求逐项填写。');}catch(e){if(ticket===generation)note(e.message);}};select.addEventListener('change',save);field.addEventListener('change',save);rev.append(select,field);card.append(rev);root.append(card);}
- const roles=node('details');roles.append(node('summary','单图职责与建议'));for(const r of a.imageRoles){roles.append(node('h3',r.sampleId+' · '+r.task),node('p',r.reason));evidence(roles,r.basis);for(const x of r.recommendations)roles.append(node('p',x.text));}root.append(roles);
- if(active.review){const advice=node('details');advice.append(node('summary','改图建议与待核实事项'));for(const x of active.review.actions)advice.append(node('p',x));root.append(advice);}
- const raw=node('details');raw.append(node('summary','原始AI结果（未改写）'),node('pre',JSON.stringify(a,null,2)));root.append(raw);
+ // Business view consumes only the already validated current task packet.
+ const section=(id,title)=>{const s=node('section');s.className='m4-business-section';s.id=id;s.append(node('h3',title));root.append(s);return s;};
+ const nav=node('nav');nav.className='m4-business-nav';nav.setAttribute('aria-label','诊断章节');
+ for(const [id,label]of [['m4-coverage','整套覆盖'],['m4-own-images','本品逐图分析'],['m4-comparison','竞品对比']]){const b=node('button',label);b.type='button';b.addEventListener('click',()=>root.querySelector('#'+id)?.scrollIntoView({block:'start'}));nav.append(b);}root.append(nav);
+ const table=(host,head,kind)=>{const hint=node('p','左右拖动查看全部字段；点击缩略图放大。'),slider=node('input'),wrap=node('div'),tbl=node('table'),thead=node('thead'),tr=node('tr'),body=node('tbody');
+ slider.type='range';slider.min='0';slider.max='1000';slider.value='0';slider.setAttribute('aria-label',host.querySelector('h3').textContent+'左右滚动');
+ wrap.className='m4-business-scroll';wrap.tabIndex=0;wrap.setAttribute('role','region');wrap.setAttribute('aria-label',host.querySelector('h3').textContent+'表格');
+ tbl.className='m4-business-table '+kind;for(const h of head)tr.append(node('th',h));thead.append(tr);tbl.append(thead,body);wrap.append(tbl);host.append(hint,slider,wrap);
+ slider.addEventListener('input',()=>{wrap.scrollLeft=Number(slider.value)*(wrap.scrollWidth-wrap.clientWidth)/1000;});
+ wrap.addEventListener('scroll',()=>{slider.value=wrap.scrollLeft*1000/Math.max(1,wrap.scrollWidth-wrap.clientWidth);});
+ return body;};
+ const cell=(tr,text,tag='td')=>{const n=node(tag,text);if(tag==='th')n.scope='row';tr.append(n);return n;};
+ const evidence=(parent,list)=>{const items=list.map(e=>({...e,url:active.images.find(i=>i.id===e.sampleId)?.url||editorial?.media.find(i=>i.id===e.sampleId)?.dataUrl})).filter(e=>e.url);
+ const group=node('div');group.className='m4-business-images';parent.append(group);
+ if(!items.length){group.append(node('span','暂无对应图证据'));return;}
+ for(const [index,e]of items.entries()){const figure=node('figure'),button=node('button'),image=node('img');
+ button.type='button';button.className='m4-evidence-thumb';button.setAttribute('aria-label','放大整图 '+e.sampleId+' · '+e.location);
+ image.src=e.url;image.alt=e.sampleId+' 完整原图';image.width=76;image.height=66;image.loading='lazy';
+ button.append(image,node('span',e.sampleId));button.addEventListener('click',()=>openImageViewer(items,index,button));figure.append(button);
+ if(e.observation)figure.append(node('figcaption',e.observation));group.append(figure);}};
+ if(editorial)root.append(node('p','以下含当前任务的本地编辑意见；原始AI结果未改写，是否采纳由运营决定。'));
+ const coverage=section('m4-coverage','买家关心什么，整套讲清了吗？');
+ const coverageBody=table(coverage,['买家问题','整套结论','证据图','判断依据','按需复核'],'m4-business-coverage');
+ for(const original of view.topics){const edited=editorial?.coverage.find(x=>x.id===original.id),t=edited?{...original,reason:edited.reason,evidence:edited.evidence.map(id=>({sampleId:id,location:'编辑引用',observation:''}))}:original;const row=node('tr');row.className='m4-retained-topic';cell(row,edited?.question||active.questions.find(q=>q.id===t.id).question,'th');
+ const status=node('span',edited?.conclusion||labels[t.coverage]);status.className='m4-business-status';status.dataset.status=t.coverage;cell(row).append(status);
+ evidence(cell(row),t.evidence);cell(row,t.reason);
+ const rev=node('details');rev.append(node('summary','复核此项'));const select=node('select');select.setAttribute('aria-label','复核 '+t.id);
+ for(const [value,label]of [['unreviewed','未复核'],['accept','同意'],['dispute','有异议'],['pending','待确认']]){const option=node('option',label);option.value=value;select.append(option);}
+ const field=node('textarea');field.maxLength=2000;field.placeholder='可选：说明异议或依据';field.setAttribute('aria-label','复核说明 '+t.id);
+ const f=feedback[t.id]||{};select.value=['accept','dispute','pending'].includes(f.decision)?f.decision:'unreviewed';field.value=typeof f.note==='string'?f.note:'';
+ const save=async()=>{const ticket=generation,c=context,v=active;feedback[t.id]={decision:select.value,note:field.value};
+ try{await storage(key(c),{asin:c.task.asin,bundle:{packet:v.packet,review:v.review},feedback:structuredClone(feedback),serverSimulation:v.packet.source==='SIMULATION'});
+ if(ticket===generation)note(cloud?'复核已暂存本机；请点击保存到服务器。':'复核已保存到本机；不要求逐项填写。');}catch(e){if(ticket===generation)note(e.message);}};
+ select.addEventListener('change',save);field.addEventListener('change',save);rev.append(select,field);cell(row).append(rev);coverageBody.append(row);}
+ const own=section('m4-own-images','先看本品：逐图保留什么，怎么改？');
+ const ownBody=table(own,['本品图片与职责',editorial?'编辑处理建议':'原结果判定','值得保留','观察与问题','具体改法'],'m4-business-own');
+ const tasks={unknown:'职责未知',main_overview:'产品总览',length:'长度',installation:'安装',lighting:'灯光效果',control:'控制方式',music:'音乐',other:'其他'};
+ const assessments={unknown:'待判断',ok:'职责成立',concern:'有疑问',not_applicable:'不适用'};
+ for(const r of a.imageRoles){const edit=editorial?.ownImages.find(x=>x.id===r.sampleId);const row=node('tr');row.dataset.sampleId=r.sampleId;const pic=cell(row,undefined,'th');
+ evidence(pic,[{sampleId:r.sampleId,location:tasks[r.task],observation:''}]);pic.append(node('span',edit?.title||tasks[r.task]));
+ cell(row,edit?.decision||assessments[r.assessment]);cell(row,edit?.keep||(r.assessment==='ok'?r.reason:'原结果未单列保留意见'));
+ const observations=r.basis.map(e=>e.observation);if(r.assessment!=='ok')observations.push(r.reason);cell(row,edit?.observation||observations.join('；')||'原结果未列出具体问题');
+ const advice=cell(row);if(edit){advice.append(node('p',edit.change));ownBody.append(row);continue;}if(!r.recommendations.length)advice.append(node('span','原结果未提出修改建议'));
+ for(const recommendation of r.recommendations)advice.append(node('p',recommendation.text));ownBody.append(row);}
+ const compare=section('m4-comparison','本品 vs 竞品：逐项看谁讲得更清楚');
+ if(!editorial?.comparisons.length){compare.dataset.state='unavailable';compare.append(node('p','当前任务留存结果仅包含本品分析，尚无绑定此任务的竞品比较结果。不会使用其他任务或样稿中的比较结论。'));}
+ else{compare.dataset.state='ready';const tabs=node('div'),content=node('div');tabs.className='m4-business-nav';compare.append(tabs,content);
+ const buttons=[];
+ const choose=comp=>{content.replaceChildren();content.append(node('h3','本品 vs '+comp.brand));
+ const body=table(content,['比较卖点','谁讲得更清楚','本品图文',comp.brand+'图文','为什么','本品怎么改'],'m4-business-comparison');
+ for(const r of comp.rows){const tr=node('tr');cell(tr,r.title,'th');const badge=node('span',r.verdict);badge.className='m4-business-status';badge.dataset.status=r.verdict==='本品更清楚'?'answered':r.verdict==='竞品更清楚'?'partial':'unknown';cell(tr).append(badge);
+const ownCell=cell(tr),otherCell=cell(tr),own=node('div'),other=node('div');own.className=other.className='m4-business-inline';ownCell.append(own);otherCell.append(other);evidence(own,r.own.map(id=>({sampleId:id,location:'本品编辑引用',observation:''})));own.append(node('p',r.ownText));evidence(other,r.other.map(id=>({sampleId:id,location:comp.brand+'编辑引用',observation:''})));other.append(node('p',r.otherText));cell(tr,r.difference);cell(tr,r.change);body.append(tr);}
+ buttons.forEach(([b,c])=>b.setAttribute('aria-pressed',String(c===comp)));};
+ for(const comp of editorial.comparisons){const b=node('button',comp.brand);b.type='button';b.addEventListener('click',()=>choose(comp));buttons.push([b,comp]);tabs.append(b);}choose(editorial.comparisons[0]);}
  if(cloud){const saveCloud=node('button','保存复核到服务器');saveCloud.type='button';saveCloud.addEventListener('click',async()=>{const ticket=generation,c=context,binding={...cloud},submitted=structuredClone(feedback);saveCloud.disabled=true;try{const out=await remote(c,'/api/module4/set-review',{taskId:c.task.id,responseSha256:binding.responseSha256,expectedVersion:binding.version,feedback:submitted});if(ticket!==generation)return;check(out.ok===true&&out.version===binding.version+1&&out.responseSha256===binding.responseSha256,'保存状态不明确');cloud.version=out.version;note(JSON.stringify(feedback)===JSON.stringify(submitted)?'复核已保存到服务器。':'此次复核已保存；保存期间的新修改仍需再次保存。');}catch(e){if(ticket===generation){cloud=null;note('服务器保存未确认，请导出本地意见后重新读取核对；不会自动重试。');}}finally{if(ticket===generation)saveCloud.disabled=!cloud;}});root.append(saveCloud);}
  const exportButton=node('button','导出本地结果与复核');exportButton.type='button';exportButton.addEventListener('click',()=>download({packet:active.packet,review:active.review,feedback:{format:'M4_AI_SET_FEEDBACK_V1',source:active.packet.source,taskId:context.task.id,analysisPacketSha256:active.packetSha256,feedback:structuredClone(feedback),humanSigned:false,businessQualityPass:null}},context.task.asin+'-整套诊断与复核.json'));root.append(exportButton);
 }
