@@ -78,3 +78,11 @@
 .m4-retained .m4-business-images .m4-evidence-thumb{margin:0}
 .m4-retained[data-review-open=false] .m4-business-coverage :is(th,td):nth-child(5),.m4-retained[data-review-open=false] .m4-review-action{display:none}
 .m4-retained[data-review-open=false] table.m4-business-coverage :is(th,td):nth-child(4){width:46%!important}
+.m4-retained [data-notice]:empty{display:none}
+.m4-retained .m4-reading-label{margin:20px 0 8px;font-size:14px;color:#52677d}
+.m4-retained .m4-reading-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 20px}
+.m4-retained .m4-reading-nav button{margin:0;padding:14px;text-align:left;background:#f6f9fc;border-color:#d4e0ec;color:#244f7c}
+.m4-reading-nav strong,.m4-reading-nav span{display:block}
+.m4-reading-nav strong{font-size:15px;margin-bottom:5px}
+.m4-reading-nav span{font-size:13px;line-height:1.5;color:#52677d}
+@media(max-width:600px){.m4-retained .m4-reading-nav{grid-template-columns:1fr}}

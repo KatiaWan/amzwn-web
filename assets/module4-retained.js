@@ -99,8 +99,10 @@ function render(){closeImageViewer(false);root.replaceChildren();reportState();i
  const a=active.packet.analysis,view=structuredClone(a);if(active.review){for(const c of active.review.changes){const t=view.topics.find(t=>t.id===c.topic);t.coverage=c.coverage;t.reason=c.reason;if(c.evidence)t.evidence=c.evidence;}root.append(node('p','当前含与原始响应绑定的助手复核层，未代替用户确认。'));}
  // Business view consumes only the already validated current task packet.
  const section=(id,title)=>{const s=node('section');s.className='m4-business-section';s.id=id;s.append(node('h3',title));root.append(s);return s;};
- const nav=node('nav');nav.className='m4-business-nav';nav.setAttribute('aria-label','诊断章节');
- for(const [id,label]of [['m4-coverage','整套覆盖'],['m4-own-images','本品逐图分析'],['m4-comparison','竞品对比']]){const b=node('button',label);b.type='button';b.addEventListener('click',()=>root.querySelector('#'+id)?.scrollIntoView({block:'start'}));nav.append(b);}root.append(nav);
+ if(!tool&&readState==='server')bar.hidden=true;
+ const navTitle=node('p','阅读导航 · 点击跳转到对应内容');navTitle.className='m4-reading-label';root.append(navTitle);
+ const nav=node('nav');nav.className='m4-business-nav m4-reading-nav';nav.setAttribute('aria-label','报告阅读导航');
+ for(const [id,label,description]of [['m4-coverage','01 看整套图片','买家的问题，图片讲清了吗？'],['m4-own-images','02 看自己的每张图','哪些值得保留，哪些可以改？'],['m4-comparison','03 与竞品对照','同一个卖点，谁讲得更清楚？']]){const b=node('button');b.type='button';b.append(node('strong',label),node('span',description));b.addEventListener('click',()=>root.querySelector('#'+id)?.scrollIntoView({block:'start'}));nav.append(b);}root.append(nav);
  const table=(host,head,kind)=>{const hint=node('p','左右拖动查看全部字段；点击缩略图放大。'),slider=node('input'),wrap=node('div'),tbl=node('table'),thead=node('thead'),tr=node('tr'),body=node('tbody');
  slider.type='range';slider.min='0';slider.max='1000';slider.value='0';slider.setAttribute('aria-label',host.querySelector('h3').textContent+'左右滚动');
  wrap.className='m4-business-scroll';wrap.tabIndex=0;wrap.setAttribute('role','region');wrap.setAttribute('aria-label',host.querySelector('h3').textContent+'表格');
@@ -117,9 +119,8 @@ function render(){closeImageViewer(false);root.replaceChildren();reportState();i
  image.src=e.url;image.alt=e.sampleId+' 完整原图';image.width=76;image.height=66;image.loading='lazy';
  button.append(image,node('span',e.sampleId));button.addEventListener('click',()=>openImageViewer(items,index,button));figure.append(button);
  if(e.observation)figure.append(node('figcaption',e.observation));group.append(figure);}};
- if(editorial)root.append(node('p','以下含当前任务的本地编辑意见；原始AI结果未改写，是否采纳由运营决定。'));
  root.dataset.reviewOpen='false';
- const reviewToggle=node('button','记录我的意见');reviewToggle.type='button';reviewToggle.setAttribute('aria-expanded','false');reviewToggle.addEventListener('click',()=>{const open=root.dataset.reviewOpen!=='true';root.dataset.reviewOpen=String(open);reviewToggle.setAttribute('aria-expanded',String(open));reviewToggle.textContent=open?'收起我的意见':'记录我的意见';});root.append(reviewToggle);
+ if(tool){const reviewToggle=node('button','记录我的意见');reviewToggle.type='button';reviewToggle.setAttribute('aria-expanded','false');reviewToggle.addEventListener('click',()=>{const open=root.dataset.reviewOpen!=='true';root.dataset.reviewOpen=String(open);reviewToggle.setAttribute('aria-expanded',String(open));reviewToggle.textContent=open?'收起我的意见':'记录我的意见';});root.append(reviewToggle);}
  const coverage=section('m4-coverage','买家关心什么，整套讲清了吗？');
  const coverageBody=table(coverage,['买家问题','整套结论','证据图','判断依据','按需复核'],'m4-business-coverage');
  for(const original of view.topics){const edited=editorial?.coverage.find(x=>x.id===original.id),t=edited?{...original,reason:edited.reason,evidence:edited.evidence.map(id=>({sampleId:id,location:'编辑引用',observation:''}))}:original;const row=node('tr');row.className='m4-retained-topic';cell(row,edited?.question||active.questions.find(q=>q.id===t.id).question,'th');
