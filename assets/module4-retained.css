@@ -76,3 +76,5 @@
 .m4-retained .m4-business-coverage .m4-business-images{display:flex;flex-flow:row nowrap;gap:8px;align-items:flex-start}
 .m4-retained .m4-business-coverage .m4-business-images figure{flex:0 0 78px;width:78px;min-width:78px;max-width:78px;margin:0}
 .m4-retained .m4-business-images .m4-evidence-thumb{margin:0}
+.m4-retained[data-review-open=false] .m4-business-coverage :is(th,td):nth-child(5),.m4-retained[data-review-open=false] .m4-review-action{display:none}
+.m4-retained[data-review-open=false] table.m4-business-coverage :is(th,td):nth-child(4){width:46%!important}
