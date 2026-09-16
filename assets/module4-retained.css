@@ -51,3 +51,28 @@
 .m4-retained .m4-business-coverage th:nth-child(1){width:200px}.m4-retained .m4-business-coverage th:nth-child(2){width:120px}.m4-retained .m4-business-coverage th:nth-child(3){width:300px}.m4-retained .m4-business-coverage th:nth-child(4){width:340px}.m4-retained .m4-business-coverage th:nth-child(5){width:240px}
 .m4-retained .m4-business-own th:nth-child(1){width:160px}.m4-retained .m4-business-own th:nth-child(2){width:120px}.m4-retained .m4-business-own th:nth-child(3){width:260px}.m4-retained .m4-business-own th:nth-child(4){width:320px}.m4-retained .m4-business-own th:nth-child(5){width:340px}
 @media(max-width:600px){.m4-retained .m4-business-section{padding:10px}.m4-retained .m4-business-section>h3{font-size:17px}}
+
+/* Business tables must not inherit the legacy keyword table's global
+   third-column width:132px!important. Keep all three surfaces full-width. */
+.m4-retained .m4-business-scroll{width:100%;box-sizing:border-box}
+.m4-retained table.m4-business-table{width:100%;min-width:1480px;table-layout:fixed;font-size:14px}
+.m4-retained table.m4-business-table th,.m4-retained table.m4-business-table td{box-sizing:border-box;white-space:normal;text-align:left}
+.m4-retained table.m4-business-coverage :is(th,td):nth-child(1){width:18%!important}
+.m4-retained table.m4-business-coverage :is(th,td):nth-child(2){width:10%!important}
+.m4-retained table.m4-business-coverage :is(th,td):nth-child(3){width:26%!important}
+.m4-retained table.m4-business-coverage :is(th,td):nth-child(4){width:31%!important}
+.m4-retained table.m4-business-coverage :is(th,td):nth-child(5){width:15%!important}
+.m4-retained table.m4-business-own :is(th,td):nth-child(1){width:15%!important}
+.m4-retained table.m4-business-own :is(th,td):nth-child(2){width:13%!important}
+.m4-retained table.m4-business-own :is(th,td):nth-child(3){width:20%!important}
+.m4-retained table.m4-business-own :is(th,td):nth-child(4){width:25%!important}
+.m4-retained table.m4-business-own :is(th,td):nth-child(5){width:27%!important}
+.m4-retained table.m4-business-comparison :is(th,td):nth-child(1){width:10%!important;min-width:0!important;max-width:none!important}
+.m4-retained table.m4-business-comparison :is(th,td):nth-child(2){width:9%!important;min-width:0!important;max-width:none!important}
+.m4-retained table.m4-business-comparison :is(th,td):nth-child(3){width:21%!important;min-width:0!important;max-width:none!important}
+.m4-retained table.m4-business-comparison :is(th,td):nth-child(4){width:21%!important;min-width:0!important;max-width:none!important}
+.m4-retained table.m4-business-comparison :is(th,td):nth-child(5){width:20%!important;min-width:0!important;max-width:none!important}
+.m4-retained table.m4-business-comparison :is(th,td):nth-child(6){width:19%!important;min-width:0!important;max-width:none!important}
+.m4-retained .m4-business-coverage .m4-business-images{display:flex;flex-flow:row nowrap;gap:8px;align-items:flex-start}
+.m4-retained .m4-business-coverage .m4-business-images figure{flex:0 0 78px;width:78px;min-width:78px;max-width:78px;margin:0}
+.m4-retained .m4-business-images .m4-evidence-thumb{margin:0}
