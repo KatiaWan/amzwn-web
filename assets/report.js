@@ -7,6 +7,7 @@
   const statusPill = document.querySelector("#report-status");
   const reportTime = document.querySelector("#report-time");
   const reloadButton = document.querySelector("#reload-report");
+  const downloadButton = document.querySelector("#download-report");
   const taskId = new URLSearchParams(window.location.search).get("task") || "";
   let task = null;
   let reportOwnerId = null;
@@ -48,13 +49,12 @@
     stage.append(state);
   }
 
-  function isValidReportUrl(value) {
-    try {
-      const url = new URL(value);
-      return url.protocol === "https:" && url.hostname === app.config.reportHost;
-    } catch {
-      return false;
-    }
+  function protectedReportUrl(download = false) {
+    const url = new URL(app.config.apiUrl);
+    if (url.protocol !== "https:" || url.pathname !== "/api/auth-check") throw new Error("REPORT_API_CONFIG_INVALID");
+    url.pathname = download ? "/api/report/download" : "/api/report";
+    url.search = new URLSearchParams({ taskId }).toString();
+    return url.href;
   }
 
   function withBaseUrl(html, reportUrl) {
@@ -530,18 +530,15 @@
 
   async function renderCompletedReport(turn = loadGeneration) {
     const renderingTask = task, owner = reportOwnerId;
-    if (!isValidReportUrl(task.report_url)) {
-      setStatus("失败");
-      showState("报告地址异常", "为了保护你的数据，本页拒绝打开不属于指定报告仓库的地址。", {
-        label: "返回任务列表",
-        handler: () => window.location.assign("../tool/")
-      });
-      return;
-    }
-
     showState("正在载入完整报告", "报告内容较多，首次打开可能需要几秒钟。");
     try {
-      const response = await fetch(task.report_url, { cache: "no-store", credentials: "omit" });
+      const session = await app.currentSession();
+      if (!session || session.user.id !== owner) throw new Error("REPORT_SESSION_CHANGED");
+      const response = await fetch(protectedReportUrl(), {
+        cache: "no-store",
+        credentials: "omit",
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
       if (!response.ok) throw new Error(`REPORT_HTTP_${response.status}`);
       const html = await response.text();
       if (turn !== loadGeneration || owner !== reportOwnerId || (await app.currentSession())?.user?.id !== owner) return;
@@ -563,7 +560,7 @@
           stage.classList.remove("report-stage--expanded");
         }
       }, { once: true });
-      frame.srcdoc = withBaseUrl(html, task.report_url);
+      frame.srcdoc = withBaseUrl(html, new URL("../", window.location.href).href);
       stage.replaceChildren(frame);
     } catch (error) {
       if(turn !== loadGeneration) return;
@@ -592,7 +589,7 @@
     try {
       const result = await app.client
         .from("keyword_tasks")
-        .select("id,asin,status,report_url,failure_reason,created_at,updated_at")
+        .select("id,asin,status,failure_reason,created_at,updated_at")
         .eq("id", taskId)
         .maybeSingle();
       if (turn !== loadGeneration) return;
@@ -616,7 +613,8 @@
       reportTime.textContent = `更新于 ${app.formatDate(task.updated_at)}`;
       setStatus(task.status);
 
-      if (task.status === "已完成" && task.report_url) {
+      downloadButton.hidden = task.status !== "已完成";
+      if (task.status === "已完成") {
         await renderCompletedReport(turn);
       } else if (task.status === "失败") {
         showState("这次分析没有完成", task.failure_reason || "请返回任务页重新提交；原任务不会影响下一次分析。", {
@@ -646,7 +644,36 @@
     loadReport();
   });
 
-  const clearAccount = () => { loadGeneration++; task=null; reportOwnerId=null; window.AMZWN_RETAINED_SET?.clear(); setStatus('无访问权限'); showState('请重新登录','账号已变化，请返回任务列表重新打开。'); };
+  downloadButton.addEventListener("click", async () => {
+    downloadButton.disabled = true;
+    try {
+      const session = await app.currentSession();
+      if (!session || session.user.id !== reportOwnerId) throw new Error("REPORT_SESSION_CHANGED");
+      const response = await fetch(protectedReportUrl(true), {
+        cache: "no-store",
+        credentials: "omit",
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+      if (!response.ok) throw new Error(`REPORT_DOWNLOAD_HTTP_${response.status}`);
+      const blobUrl = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `AMZWN-${String(task?.asin || "report").replace(/[^A-Za-z0-9_-]/g, "")}-${taskId.slice(0, 8)}.html`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    } catch (error) {
+      showState("报告下载失败", app.messageFor(error, "请确认登录状态后重试。"), {
+        label: "重新载入",
+        handler: loadReport
+      });
+    } finally {
+      downloadButton.disabled = false;
+    }
+  });
+
+  const clearAccount = () => { loadGeneration++; task=null; reportOwnerId=null; downloadButton.hidden=true; window.AMZWN_RETAINED_SET?.clear(); setStatus('无访问权限'); showState('请重新登录','账号已变化，请返回任务列表重新打开。'); };
   window.addEventListener('amzwn:explicit-logout',clearAccount);
   window.addEventListener('amzwn:session-changed',e=>{if(!e.detail.session||e.detail.session.user.id!==reportOwnerId)clearAccount();});
   app.client.auth?.onAuthStateChange((_,session)=>{if(reportOwnerId&&(!session||session.user.id!==reportOwnerId))clearAccount();});
