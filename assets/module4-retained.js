@@ -3,7 +3,7 @@ const check=(v,m)=>{if(!v)throw Error(m);},validate=global.M4SetPacket.validate;
 const labels={answered:'已有回答',partial:'部分回答',missing:'未覆盖（待判断必要性）',unknown:'未知',not_applicable:'不适用'};
 function database(){return new Promise((resolve,reject)=>{const r=indexedDB.open('amzwn-module4-local-results',1);r.onupgradeneeded=()=>r.result.createObjectStore('records');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(Error('无法打开本地结果存储'));});}
 async function storage(key,value){const db=await database();try{return await new Promise((resolve,reject)=>{const t=db.transaction('records',value===undefined?'readonly':'readwrite'),s=t.objectStore('records'),r=value===undefined?s.get(key):s.put(value,key);let result;r.onsuccess=()=>{result=r.result;};t.oncomplete=()=>resolve(result);t.onerror=()=>reject(Error('本地结果保存失败'));t.onabort=t.onerror;});}finally{db.close();}}
-let context=null,generation=0,active=null,feedback={},editorial=null,pairs=[],cloud=null,readState="loading";const root=document.createElement('section');root.id='module4-retained';root.className='m4-retained';root.hidden=true;
+let context=null,generation=0,active=null,feedback={},editorial=null,pairs=[],cloud=null,readState="loading",lastReadDiagnostic=null;const root=document.createElement('section');root.id='module4-retained';root.className='m4-retained';root.hidden=true;
 const tool=document.getElementById('module4'),stage=document.getElementById('report-stage');if(tool)tool.prepend(root);else if(!stage)return;
 const node=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};
 const key=c=>[c.userId,c.task.id,c.task.asin].map(encodeURIComponent).join(':');
@@ -46,12 +46,22 @@ function openImageViewer(items,index,trigger){closeImageViewer(false);const dial
 }
 function note(text){const p=root.querySelector('[data-notice]');if(p)p.textContent=text;}
 function download(value,name){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'})),a=node('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+const DIAG_PHASES=['SESSION_PRECHECK','HTTP_HEADERS','RESPONSE_BODY','SESSION_RECHECK','HTTP_STATUS','RESULT_VALIDATION','COMPLETE'];
+const DIAG_KINDS=['NONE','DEADLINE','INVALID_JSON','HTTP_ERROR','SESSION_CHANGED','READ_ERROR','VALIDATION_ERROR'];
+function safeReadDiagnostic(d){return {format:'AMZWN_READ_DIAGNOSTIC_V1',phase:DIAG_PHASES.includes(d?.phase)?d.phase:'READ_ERROR',status:Number.isInteger(d?.status)&&d.status>=100&&d.status<=599?d.status:null,bodyComplete:d?.bodyComplete===true,elapsedMs:Number.isFinite(d?.elapsedMs)?Math.max(0,Math.round(d.elapsedMs)):0,kind:DIAG_KINDS.includes(d?.kind)?d.kind:'READ_ERROR'};}
+function diagnosticPanel(){if(!lastReadDiagnostic)return null;const box=node('section');box.dataset.readDiagnostic='';box.setAttribute('aria-label','本次读取安全诊断');const title=node('h3','本次读取诊断');const pre=node('pre',JSON.stringify(safeReadDiagnostic(lastReadDiagnostic),null,2));const exportButton=node('button','导出安全诊断信息');exportButton.type='button';exportButton.addEventListener('click',()=>download(safeReadDiagnostic(lastReadDiagnostic),context.task.asin+'-读取诊断.json'));box.append(title,pre,exportButton);return box;}
 async function remote(c,route,body){
+ const started=performance.now(),signal=AbortSignal.timeout(10000);let phase='SESSION_PRECHECK',status=null,bodyComplete=false;
+ const record=(kind,at=phase)=>{lastReadDiagnostic=safeReadDiagnostic({phase:at,kind,status,bodyComplete,elapsedMs:performance.now()-started});return lastReadDiagnostic;};
+ try{
  const session=await global.AMZWN.currentSession();check(session?.user?.id===c.userId,'账号已变化');
  const url=new URL(global.AMZWN.config.apiUrl);url.pathname=route;url.search='';url.hash='';if(!body)url.searchParams.set('taskId',c.task.id);
- const res=await fetch(url,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+session.access_token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store',signal:AbortSignal.timeout(10000)});
- const data=await res.json();const current=await global.AMZWN.currentSession();check(current?.user?.id===c.userId,'账号已变化');
- if(!res.ok){const error=Error(data.message||'服务端结果暂不可用');error.status=res.status;throw error;}return data;
+ phase='HTTP_HEADERS';const res=await fetch(url,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+session.access_token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store',signal});status=res.status;phase='RESPONSE_BODY';
+ const responseText=await res.text();bodyComplete=true;let data;try{data=JSON.parse(responseText);}catch{const error=Error('响应格式无法读取');error.readKind='INVALID_JSON';throw error;}
+ phase='SESSION_RECHECK';const current=await global.AMZWN.currentSession();if(current?.user?.id!==c.userId){const error=Error('账号已变化');error.readKind='SESSION_CHANGED';throw error;}
+ if(!res.ok){phase='HTTP_STATUS';const error=Error('服务端结果暂不可用');error.readKind='HTTP_ERROR';throw error;}
+ record('NONE','COMPLETE');return data;
+ }catch(error){const kind=error.readKind||(signal.aborted?'DEADLINE':phase==='SESSION_RECHECK'?'SESSION_CHANGED':'READ_ERROR');record(kind);error.status=status;error.readDiagnostic=lastReadDiagnostic;throw error;}
 }
 async function validateEditorial(e,c,v){
  const valid=(ok)=>check(ok,'业务编辑记录与当前任务不匹配');
@@ -75,10 +85,10 @@ async function validateEditorial(e,c,v){
  return structuredClone(e);
 }
 
-async function show(next){closeImageViewer(false);const ticket=++generation;context=next;active=null;editorial=null;pairs=[];feedback={};cloud=null;readState='loading';root.replaceChildren();if(!next&&reportHost){readState='forbidden';reportState();root.remove();reportHost=null;}root.hidden=!next?.userId||!next?.task?.id||!/^B[A-Z0-9]{9}$/.test(next?.task?.asin||'');if(root.hidden)return;
+async function show(next){closeImageViewer(false);const ticket=++generation;const sameTask=context?.userId===next?.userId&&context?.task?.id===next?.task?.id;if(!sameTask)lastReadDiagnostic=null;context=next;active=null;editorial=null;pairs=[];feedback={};cloud=null;readState='loading';root.replaceChildren();if(!next&&reportHost){readState='forbidden';reportState();root.remove();reportHost=null;}root.hidden=!next?.userId||!next?.task?.id||!/^B[A-Z0-9]{9}$/.test(next?.task?.asin||'');if(root.hidden)return;
  render();try{const session=await global.AMZWN.currentSession();if(ticket!==generation)return;if(session?.user?.id!==next.userId){root.hidden=true;context=null;return;}
  const data=await remote(next,'/api/module4/set-result');if(ticket!==generation)return;
- check(data.ok===true&&data.taskId===next.task.id&&data.asin===next.task.asin&&Object.hasOwn(data,'result'),'服务端结果归属无效');
+ check(data.ok===true&&data.taskId===next.task.id&&data.asin===next.task.asin&&Object.hasOwn(data,'result'),'服务端结果归属无效');lastReadDiagnostic=safeReadDiagnostic({...lastReadDiagnostic,phase:'RESULT_VALIDATION',kind:'NONE'});
  if(data.result){const r=data.result,v=await validate(r.bundle,next.task.asin,{allowSimulation:r.simulation===true});if(ticket!==generation)return;
  check(r.responseSha256===v.packet.record.responseSha256&&Number.isSafeInteger(r.version)&&r.version>0,'服务端结果版本无效');
  let business=null,businessInvalid=false;if(r.editorial){try{business=await validateEditorial(r.editorial,next,v);}catch{businessInvalid=true;}}if(ticket!==generation)return;
@@ -86,7 +96,7 @@ async function show(next){closeImageViewer(false);const ticket=++generation;cont
  active=v;editorial=business;pairs=validatedPairs;feedback=r.feedback||{};cloud={version:r.version,responseSha256:r.responseSha256};readState='server';render();if(businessInvalid)note('部分附加结果校验未通过，该部分不显示；保留通过校验的原有内容。');
  try{await storage(key(next),{asin:next.task.asin,bundle:{packet:v.packet,review:v.review},feedback,serverSimulation:v.packet.source==='SIMULATION'});}catch{if(ticket===generation)note('服务端结果已读取；本地缓存不可用。');}
  }else{readState='pending';render();}
- }catch(e){if(ticket!==generation)return;readState='unavailable';
+ }catch(e){if(ticket!==generation)return;if(!e.readDiagnostic&&lastReadDiagnostic){lastReadDiagnostic=safeReadDiagnostic({...lastReadDiagnostic,phase:'RESULT_VALIDATION',kind:'VALIDATION_ERROR'});}else if(!lastReadDiagnostic){lastReadDiagnostic=safeReadDiagnostic({phase:'RESULT_VALIDATION',kind:'VALIDATION_ERROR',status:null,bodyComplete:false,elapsedMs:0});}readState='unavailable';
  if([401,403].includes(e.status)){readState='forbidden';render();note('未获结果访问权限，请重新登录或选择自己的任务。');return;}
  try{const saved=await storage(key(next));if(ticket!==generation)return;if(saved){check(saved.asin===next.task.asin,'缓存产品不匹配');const v=await validate(saved.bundle,next.task.asin,{allowSimulation:saved.serverSimulation===true});if(ticket!==generation)return;active=v;feedback=saved.feedback||{};readState='offline';}}catch{}
  render();note('服务端读取失败；'+(active?'以下仅为本机留存，可能过期。':'无法判断是否已经生成，请稍后重新读取。'));}
@@ -94,7 +104,7 @@ async function show(next){closeImageViewer(false);const ticket=++generation;cont
 function render(){closeImageViewer(false);root.replaceChildren();reportState();if(!context)return;if(tool&&suppressTool){root.hidden=true;return;}root.hidden=false;root.append(node('h2','模块4 · 整套图片诊断'),node('p',context.task.asin+' · '+({loading:'正在读取任务结果',server:'已生成；尚未代表用户验收通过',pending:'服务端尚无整套结果',unavailable:'服务端暂不可用',forbidden:'无访问权限',offline:'离线本机留存，可能过期',local:'手动导入的本机留存，未上传'}[readState])));
  const bar=node('div');bar.className='m4-retained-actions';const input=node('input');input.type='file';input.accept='.json';input.setAttribute('aria-label','导入当前产品已留存的六图结果');const notice=node('p');notice.dataset.notice='';notice.setAttribute('role','status');
  input.addEventListener('change',async()=>{const file=input.files[0];input.value='';if(!file)return;const ticket=generation,c=context;try{check(file.size<=5000000,'结果包超过5MB');const bundle=JSON.parse(await file.text()),v=await validate(bundle,c.task.asin);if(ticket!==generation)return;let restored={};if(bundle.feedback){const f=bundle.feedback;check(f.format==='M4_AI_SET_FEEDBACK_V1'&&f.taskId===c.task.id&&f.analysisPacketSha256===v.packetSha256&&f.humanSigned===false&&f.businessQualityPass===null,'复核记录不属于当前任务或原始结果');check(f.feedback&&typeof f.feedback==='object'&&!Array.isArray(f.feedback),'复核格式无效');for(const [id,item]of Object.entries(f.feedback)){check(v.questions.some(q=>q.id===id)&&['unreviewed','accept','dispute','pending'].includes(item.decision)&&typeof item.note==='string'&&item.note.length<=2000,'复核内容无效');restored[id]={decision:item.decision,note:item.note};}}await storage(key(c),{asin:c.task.asin,bundle:{packet:v.packet,review:v.review},feedback:restored});if(ticket!==generation)return;active=v;editorial=null;pairs=[];feedback=restored;cloud=null;readState='local';render();note('结果已保存到当前账号与任务的本地空间。');}catch(e){if(ticket===generation)note(e.message);}});
- const retry=node('button','重新读取服务端结果');retry.type='button';retry.addEventListener('click',()=>show(context));if(tool)bar.append(input);bar.append(retry);if(tool){const link=node('a','在报告页查看');link.href='../report/?task='+encodeURIComponent(context.task.id)+'&module=05#report05';bar.append(link);}else{const link=node('a','返回工具页');link.href=new URL('../tool/?module4Task='+encodeURIComponent(context.task.id)+'#module4',location.href).href;link.target='_top';bar.append(link);}root.append(bar,notice);
+ const retry=node('button','重新读取服务端结果');retry.type='button';retry.addEventListener('click',()=>show(context));if(tool)bar.append(input);bar.append(retry);if(tool){const link=node('a','在报告页查看');link.href='../report/?task='+encodeURIComponent(context.task.id)+'&module=05#report05';bar.append(link);}else{const link=node('a','返回工具页');link.href=new URL('../tool/?module4Task='+encodeURIComponent(context.task.id)+'#module4',location.href).href;link.target='_top';bar.append(link);}root.append(bar,notice);const diagPanel=diagnosticPanel();if(diagPanel)root.append(diagPanel);
  if(!active){root.append(node('p',readState==='loading'?'正在读取……':readState==='pending'?'此任务尚无整套AI结果，待生成。可导入该产品已有留存结果；不会套用其他产品或样例。':'当前没有可显示的结果。读取失败不代表尚未生成。'));return;}
  if(active.packet.source==='SIMULATION')root.append(node('p','模拟模型 / 离线测试结果：没有真实模型调用，不能作为业务诊断。'));
  const a=active.packet.analysis,view=structuredClone(a);if(active.review){for(const c of active.review.changes){const t=view.topics.find(t=>t.id===c.topic);t.coverage=c.coverage;t.reason=c.reason;if(c.evidence)t.evidence=c.evidence;}root.append(node('p','当前含与原始响应绑定的助手复核层，未代替用户确认。'));}
