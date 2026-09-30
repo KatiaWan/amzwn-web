@@ -48,20 +48,22 @@ function note(text){const p=root.querySelector('[data-notice]');if(p)p.textConte
 function download(value,name){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'})),a=node('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 const DIAG_PHASES=['SESSION_PRECHECK','HTTP_HEADERS','RESPONSE_BODY','SESSION_RECHECK','HTTP_STATUS','RESULT_VALIDATION','COMPLETE'];
 const DIAG_KINDS=['NONE','DEADLINE','NETWORK_ERROR','INVALID_JSON','HTTP_ERROR','SESSION_CHANGED','READ_ERROR','VALIDATION_ERROR'];
+const RESULT_HEADER_WAIT_MS=10000,RESULT_BODY_WAIT_MS=20000;
 function safeReadDiagnostic(d){return {phase:DIAG_PHASES.includes(d?.phase)?d.phase:'RESULT_VALIDATION',status:Number.isInteger(d?.status)&&d.status>=100&&d.status<=599?d.status:null,elapsedMs:Number.isFinite(d?.elapsedMs)?Math.max(0,Math.round(d.elapsedMs)):0,kind:DIAG_KINDS.includes(d?.kind)?d.kind:'READ_ERROR'};}
 function diagnosticPanel(){if(!lastReadDiagnostic)return null;const box=node('section');box.dataset.readDiagnostic='';box.setAttribute('aria-label','本次读取安全诊断');const title=node('h3','本次读取诊断');const pre=node('pre',JSON.stringify(safeReadDiagnostic(lastReadDiagnostic),null,2));const exportButton=node('button','导出安全诊断信息');exportButton.type='button';exportButton.addEventListener('click',()=>download(safeReadDiagnostic(lastReadDiagnostic),'模块四读取诊断.json'));box.append(title,pre,exportButton);return box;}
 async function remote(c,route,body){
- const started=performance.now(),diagnose=route==='/api/module4/set-result';let signal=null,phase='SESSION_PRECHECK',status=null;
+ const started=performance.now(),diagnose=route==='/api/module4/set-result';let signal=null,phase='SESSION_PRECHECK',status=null,headerTimer=null,bodyTimer=null,deadlinePhase=null;
  const record=(kind,at=phase)=>{if(diagnose)lastReadDiagnostic=safeReadDiagnostic({phase:at,kind,status,elapsedMs:performance.now()-started});return lastReadDiagnostic;};
  try{
  const session=await global.AMZWN.currentSession();check(session?.user?.id===c.userId,'账号已变化');
  const url=new URL(global.AMZWN.config.apiUrl);url.pathname=route;url.search='';url.hash='';if(!body)url.searchParams.set('taskId',c.task.id);
- phase='HTTP_HEADERS';signal=AbortSignal.timeout(10000);const res=await fetch(url,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+session.access_token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store',signal});status=res.status;phase='RESPONSE_BODY';
- let data;try{data=await res.json();}catch(error){if(error instanceof SyntaxError)error.readKind='INVALID_JSON';throw error;}
+ phase='HTTP_HEADERS';const controller=diagnose?new AbortController():null;signal=controller?.signal||AbortSignal.timeout(10000);if(controller)headerTimer=setTimeout(()=>{deadlinePhase='HTTP_HEADERS';controller.abort();},RESULT_HEADER_WAIT_MS);
+ const res=await fetch(url,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+session.access_token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store',signal});if(headerTimer){clearTimeout(headerTimer);headerTimer=null;}status=res.status;phase='RESPONSE_BODY';if(controller)bodyTimer=setTimeout(()=>{deadlinePhase='RESPONSE_BODY';controller.abort();},RESULT_BODY_WAIT_MS);
+ let data;try{data=await res.json();}catch(error){if(error instanceof SyntaxError)error.readKind='INVALID_JSON';throw error;}if(bodyTimer){clearTimeout(bodyTimer);bodyTimer=null;}
  phase='SESSION_RECHECK';const current=await global.AMZWN.currentSession();if(current?.user?.id!==c.userId){const error=Error('账号已变化');error.readKind='SESSION_CHANGED';throw error;}
  if(!res.ok){phase='HTTP_STATUS';const error=Error('服务端结果暂不可用');error.readKind='HTTP_ERROR';throw error;}
  record('NONE','RESULT_VALIDATION');return data;
- }catch(error){const kind=error.readKind||((phase==='HTTP_HEADERS'||phase==='RESPONSE_BODY')&&signal?.aborted?'DEADLINE':phase==='HTTP_HEADERS'&&error instanceof TypeError?'NETWORK_ERROR':phase==='SESSION_PRECHECK'||phase==='SESSION_RECHECK'?'SESSION_CHANGED':'READ_ERROR');record(kind);error.status=status;if(diagnose)error.readDiagnostic=lastReadDiagnostic;throw error;}
+ }catch(error){const kind=error.readKind||((phase==='HTTP_HEADERS'||phase==='RESPONSE_BODY')&&signal?.aborted?'DEADLINE':phase==='HTTP_HEADERS'&&error instanceof TypeError?'NETWORK_ERROR':phase==='SESSION_PRECHECK'||phase==='SESSION_RECHECK'?'SESSION_CHANGED':'READ_ERROR');record(kind,kind==='DEADLINE'&&deadlinePhase||phase);error.status=status;if(diagnose)error.readDiagnostic=lastReadDiagnostic;throw error;}finally{if(headerTimer)clearTimeout(headerTimer);if(bodyTimer)clearTimeout(bodyTimer);}
 }
 async function validateEditorial(e,c,v){
  const valid=(ok)=>check(ok,'业务编辑记录与当前任务不匹配');
