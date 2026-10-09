@@ -554,6 +554,10 @@
           if(turn !== loadGeneration || owner !== reportOwnerId || !frame.isConnected) return;
           window.AMZWN_RETAINED_SET?.mountReport(frame,{userId:owner,task:renderingTask});
           addReportControls(frame);
+          void window.AMZWN_REPORT06?.mount(frame, {userId:owner,task:renderingTask}).catch(() => {
+            const host = frame.contentDocument?.getElementById("report06-host");
+            if (host && !host.shadowRoot) host.textContent = "报告06暂时无法显示，请刷新后重试。";
+          });
         } catch {
           removeReportControls();
           frame.style.height = "";
