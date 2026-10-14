@@ -558,6 +558,7 @@
             const host = frame.contentDocument?.getElementById("report06-host");
             if (host && !host.shadowRoot) host.textContent = "报告06暂时无法显示，请刷新后重试。";
           });
+          window.AMZWN_REPORT_MODULES_1TO4?.mount(frame, {userId:owner,task:renderingTask});
         } catch {
           removeReportControls();
           frame.style.height = "";
@@ -578,6 +579,7 @@
   async function loadReport() {
     const turn = ++loadGeneration;
     window.AMZWN_RETAINED_SET?.clear();
+    window.AMZWN_REPORT_MODULES_1TO4?.clear();
     reloadButton.disabled = true;
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(taskId)) {
       setStatus("失败");
@@ -677,7 +679,7 @@
     }
   });
 
-  const clearAccount = () => { loadGeneration++; task=null; reportOwnerId=null; downloadButton.hidden=true; window.AMZWN_RETAINED_SET?.clear(); setStatus('无访问权限'); showState('请重新登录','账号已变化，请返回任务列表重新打开。'); };
+  const clearAccount = () => { loadGeneration++; task=null; reportOwnerId=null; downloadButton.hidden=true; window.AMZWN_RETAINED_SET?.clear(); window.AMZWN_REPORT_MODULES_1TO4?.clear(); setStatus('无访问权限'); showState('请重新登录','账号已变化，请返回任务列表重新打开。'); };
   window.addEventListener('amzwn:explicit-logout',clearAccount);
   window.addEventListener('amzwn:session-changed',e=>{if(!e.detail.session||e.detail.session.user.id!==reportOwnerId)clearAccount();});
   app.client.auth?.onAuthStateChange((_,session)=>{if(reportOwnerId&&(!session||session.user.id!==reportOwnerId))clearAccount();});
