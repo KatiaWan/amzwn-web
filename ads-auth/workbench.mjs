@@ -21,6 +21,7 @@ const count=v=>v==null?'—':BigInt(v).toLocaleString('zh-CN');
 const money=v=>v==null?'—':Number(v).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
 export function mountAdsWorkbench(root,{apiOrigin,getSession,transport=fetch,clipboard=globalThis.navigator?.clipboard,pollMs=10000,demo=false}){
   let storeId='',stores=[],requestId=null,authorizationUrl='',expiresAt=0,profiles=[],selected=null,busy=false,disposed=false,revision=0,timer;
+  const lifecycle=new AbortController();
   const origin=new URL(apiOrigin).origin;
   if(!(origin==='https://api.amzwn.com'||(demo&&/^http:\/\/127\.0\.0\.1:\d+$/.test(origin))))throw new Error('UNAPPROVED_API_ORIGIN');
   root.innerHTML=`<div class="ads-row"><h1>店铺广告接入</h1><span class="ads-subtle">美国站 · Sponsored Products</span></div>
@@ -38,17 +39,17 @@ export function mountAdsWorkbench(root,{apiOrigin,getSession,transport=fetch,cli
     <p data-warning class="ads-error" hidden></p><p class="ads-subtle">USD · 站点当地日期 · 7天归因，近期销售额和订单可能回补。</p>
     <div class="ads-table-wrap"><table><thead><tr><th>日期</th><th class="ads-number">活动数</th><th class="ads-number">曝光</th><th class="ads-number">点击</th><th class="ads-number">花费 USD</th><th class="ads-number">广告销售额 USD</th><th class="ads-number">广告订单</th></tr></thead><tbody data-daily></tbody></table></div>
     <details><summary>数据状态</summary><div data-details></div></details><button class="ads-button" data-disable hidden>停用此店铺的 Ads 接入</button></section>`;
-  const el=k=>root.querySelector(`[data-${k}]`),say=t=>{el('status').textContent=t;},error=e=>{el('error').hidden=!e;el('error').textContent=e?message(e.code??e.message):'';};
+  const el=k=>root.querySelector(`[data-${k}]`),say=t=>{if(!disposed)el('status').textContent=t;},error=e=>{if(disposed)return;el('error').hidden=!e;el('error').textContent=e?message(e.code??e.message):'';};
   el('demo').hidden=!demo;
-  const controls=()=>{const canManage=stores.find(s=>s.id===storeId)?.can_manage;for(const key of ['generate','confirm','disable'])el(key).disabled=busy||!canManage;
+  const controls=()=>{if(disposed)return;const canManage=stores.find(s=>s.id===storeId)?.can_manage;for(const key of ['generate','confirm','disable'])el(key).disabled=busy||!canManage;
     el('store').disabled=busy;el('copy').disabled=!authorizationUrl||Date.now()>=expiresAt;};
   const call=async(path,{method='GET',body}={})=>{
-    const session=await getSession();if(!session?.access_token)throw Object.assign(new Error('UNAUTHENTICATED'),{code:'UNAUTHENTICATED'});
-    const r=await transport(origin+path,{method,credentials:'omit',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(15000),
+    const session=await getSession();if(disposed)throw Object.assign(new Error(),{code:'UNAUTHENTICATED'});if(!session?.access_token)throw Object.assign(new Error('UNAUTHENTICATED'),{code:'UNAUTHENTICATED'});
+    const r=await transport(origin+path,{method,credentials:'omit',redirect:'error',cache:'no-store',signal:AbortSignal.any([lifecycle.signal,AbortSignal.timeout(15000)]),
       headers:{authorization:`Bearer ${session.access_token}`,...(body?{'content-type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
-    const data=await r.json();if(!r.ok)throw Object.assign(new Error(data.error),{code:data.error});return data;
+    const data=await r.json();if(disposed)throw Object.assign(new Error(),{code:'UNAUTHENTICATED'});if(!r.ok)throw Object.assign(new Error(data.error),{code:data.error});return data;
   };
-  function clearLink(){authorizationUrl='';expiresAt=0;el('link').value='';el('link-panel').hidden=true;controls();}
+  function clearLink(){authorizationUrl='';expiresAt=0;if(disposed)return;el('link').value='';el('link-panel').hidden=true;controls();}
   function renderProfiles(items){
     const signature=JSON.stringify(items.map(p=>[p.grant_id,p.profile_id,p.discovery_expires_at]));
     if(signature===el('profiles').dataset.signature)return;
@@ -100,9 +101,9 @@ export function mountAdsWorkbench(root,{apiOrigin,getSession,transport=fetch,cli
   el('refresh').addEventListener('click',()=>{error(null);refresh();});
   for(const key of ['ownership','auto'])el(key).addEventListener('change',()=>error(null));
   el('store').addEventListener('change',()=>{revision++;storeId=el('store').value;requestId=null;clearLink();profiles=[];selected=null;el('profiles').dataset.signature='';el('confirm-panel').hidden=true;error(null);refresh();});
-  async function init(){try{stores=(await call('/ads-auth/stores')).stores;el('store').replaceChildren();for(const s of stores){const o=document.createElement('option');o.value=s.id;o.textContent=s.name;el('store').append(o);}
+  async function init(){try{stores=(await call('/ads-auth/stores')).stores;if(disposed)return;el('store').replaceChildren();for(const s of stores){const o=document.createElement('option');o.value=s.id;o.textContent=s.name;el('store').append(o);}
     storeId=stores[0]?.id??'';controls();say(storeId?'先生成链接，再到对应店铺的紫鸟完成授权。':'尚未登记可访问的试点店铺，请联系工作台管理员。');await refresh();
-  }catch(e){error(e);say('暂时无法读取接入状态。');controls();}}
+  }catch(e){if(disposed)return;error(e);say('暂时无法读取接入状态。');controls();}}
   init();timer=setInterval(()=>{if(authorizationUrl&&Date.now()>=expiresAt){clearLink();say('链接已过期，请重新生成。');}if(!busy)refresh();},pollMs);
-  return {refresh,destroy(){disposed=true;clearInterval(timer);clearLink();root.replaceChildren();}};
+  return {refresh,destroy(){disposed=true;clearInterval(timer);lifecycle.abort();authorizationUrl='';expiresAt=0;root.replaceChildren();}};
 }
